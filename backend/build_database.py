@@ -398,6 +398,58 @@ def parse_trainer_db(xl):
 
 
 # ---------------------------------------------------------------------------
+# Phase 1e: Parse Level-Up Learnsets sheet → per-Pokémon move list
+# ---------------------------------------------------------------------------
+
+def parse_learnsets(xl):
+    """
+    Parse the 'Level-Up Learnsets' sheet.
+
+    Each row represents one Pokémon. Columns come in (Move, Level) pairs:
+      Move, Level, Move 2, Level 2, …, Move 20, Level 20
+
+    Returns a dict keyed by Pokémon name (upper-case, matching Personal sheet):
+      { "BULBASAUR": [{"move": "Poison Sting", "level": 1}, …], … }
+    """
+    df = xl.parse('Level-Up Learnsets', header=0)
+    learnsets = {}
+
+    # Build paired column names: move columns are those containing 'Move',
+    # their corresponding level column shares the same numeric suffix.
+    cols = df.columns.tolist()
+    move_col_names = [c for c in cols if 'Move' in str(c) and 'Level' not in str(c)]
+
+    def level_col_for(move_col):
+        """Return the level column that corresponds to the given move column."""
+        # 'Move' → 'Level', 'Move 2' → 'Level 2', etc.
+        return move_col.replace('Move', 'Level')
+
+    for _, row in df.iterrows():
+        name = _val(row.get('Name'))
+        if not name or name == '-----':
+            continue
+
+        pairs = []
+        for mc in move_col_names:
+            lc = level_col_for(mc)
+            move_name = _val(row.get(mc))
+            level_val = row.get(lc)
+            if not move_name:
+                continue
+            try:
+                lvl = int(float(level_val)) if level_val is not None and not pd.isna(level_val) else 0
+            except (ValueError, TypeError):
+                lvl = 0
+            pairs.append({'move': move_name, 'level': lvl})
+
+        # Sort by level so the UI can display them in order
+        pairs.sort(key=lambda p: p['level'])
+        learnsets[name] = pairs
+
+    return learnsets
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -413,7 +465,11 @@ def main():
     moves = parse_moves(xl)
     print(f'  → {len(moves)} moves')
 
-    kaizo_data = {'pokemon': pokemon, 'moves': moves}
+    print('Parsing Level-Up Learnsets sheet …')
+    learnsets = parse_learnsets(xl)
+    print(f'  → {len(learnsets)} Pokémon learnsets')
+
+    kaizo_data = {'pokemon': pokemon, 'moves': moves, 'learnsets': learnsets}
     out_path = os.path.join(OUT_DIR, 'kaizo_data.json')
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(kaizo_data, f, indent=2, ensure_ascii=False)

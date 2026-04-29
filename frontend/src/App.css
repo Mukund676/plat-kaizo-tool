@@ -192,3 +192,80 @@ body {
 /* ── Utility ── */
 .error { color: #f85149; font-size: 13px; }
 .hint  { color: #8b949e; font-size: 13px; text-align: center; padding: 16px; }
+
+/* ── Source tabs (Party / Boxes) ── */
+.source-tabs {
+  display: flex;
+  gap: 6px;
+}
+.source-tabs button {
+  flex: 1;
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+.source-tabs button:hover { background: #30363d; }
+.source-tabs button.active { background: #1f6feb; border-color: #388bfd; }
+
+/* ── Box label in slot buttons ── */
+.box-label { color: #79c0ff; font-size: 10px; }
+
+/* ── Learnset section ── */
+.learnset-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.learnset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.learnset-tag {
+  background: #0d2a1f;
+  border: 1px solid #2ea043;
+  color: #56d364;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.learnset-tag:hover {
+  background: #145523;
+}
+
+/* ── Calc move editor ── */
+.calc-moves-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.calc-moves-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.calc-move-input {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.calc-move-input:focus {
+  outline: none;
+  border-color: #388bfd;
+}
+

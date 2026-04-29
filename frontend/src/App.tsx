@@ -4,6 +4,9 @@
  * Three-pane Platinum Kaizo VGC Calculator & Router dashboard.
  *
  * Left  Pane – Player: file dropzone → POST to Flask /api/upload-save → show team
+ *              Supports both party and PC box Pokémon browsing.
+ *              Shows level-up learnset moves at or below current level.
+ *              Allows editing the moves used in the damage calculator.
  * Right Pane – Enemy:  trainer dropdown → show lead Pokémon
  * Bottom Pane – Output: damage rolls via @smogon/calc + AI move probabilities
  */
@@ -14,6 +17,7 @@ import axios from 'axios'
 import { calculate, Pokemon, Move, Field } from '@smogon/calc'
 import { predictEnemyMove, type BattleMon, type AIFlags } from './engine/aiPredictor'
 import trainerDb from '../../data/trainer_db.json'
+import kaizoRaw from '../../data/kaizo_data.json'
 import './App.css'
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -21,17 +25,30 @@ import './App.css'
 // ────────────────────────────────────────────────────────────────────────────
 
 interface PartyMon {
+  source: 'party' | 'box'
   slot: number
+  box?: number
   species: string
   level: number
   nature: string
   ability: string
   item: string
-  hp: number
-  max_hp: number
+  hp?: number
+  max_hp?: number
   evs: Record<string, number>
   ivs: Record<string, number>
   moves: string[]
+}
+
+interface LearnsetEntry {
+  move: string
+  level: number
+}
+
+interface KaizoData {
+  pokemon: Record<string, unknown>
+  moves: Record<string, unknown>
+  learnsets: Record<string, LearnsetEntry[]>
 }
 
 interface TrainerPokemon {
@@ -60,14 +77,32 @@ interface DamageResult {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Learnset helpers
+// ────────────────────────────────────────────────────────────────────────────
+
+const kaizoData = kaizoRaw as KaizoData
+
+/**
+ * Return all moves a Pokémon can learn at or below `level` via level-up
+ * (i.e. moves available via the Move Reminder / Heart Scale).
+ */
+function getLearnableAtLevel(species: string, level: number): LearnsetEntry[] {
+  // Normalise species name to upper-case to match kaizo_data key format
+  const key = species.toUpperCase()
+  const learnset = kaizoData.learnsets[key] ?? []
+  return learnset.filter((e) => e.level <= level)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ────────────────────────────────────────────────────────────────────────────
 
 function MonCard({ mon }: { mon: PartyMon | TrainerPokemon }) {
   const hpPct =
-    'hp' in mon && 'max_hp' in mon && (mon as PartyMon).max_hp > 0
-      ? Math.round(((mon as PartyMon).hp / (mon as PartyMon).max_hp) * 100)
-      : 100
+    'hp' in mon && 'max_hp' in mon &&
+    (mon as PartyMon).max_hp != null && (mon as PartyMon).max_hp! > 0
+      ? Math.round(((mon as PartyMon).hp! / (mon as PartyMon).max_hp!) * 100)
+      : null
 
   return (
     <div className="mon-card">
@@ -75,7 +110,7 @@ function MonCard({ mon }: { mon: PartyMon | TrainerPokemon }) {
         <span className="mon-name">{mon.species}</span>
         <span className="mon-level">Lv {mon.level}</span>
       </div>
-      {'hp' in mon && (
+      {hpPct !== null && (
         <div className="hp-bar-wrap">
           <div className="hp-bar" style={{ width: `${hpPct}%` }} />
           <span className="hp-label">
@@ -132,8 +167,9 @@ function computeDamage(
     const lo = dmg[0]
     const hi = dmg[dmg.length - 1]
     const maxHp =
-      'max_hp' in defenderMon && (defenderMon as PartyMon).max_hp > 0
-        ? (defenderMon as PartyMon).max_hp
+      'max_hp' in defenderMon && (defenderMon as PartyMon).max_hp != null &&
+      (defenderMon as PartyMon).max_hp! > 0
+        ? (defenderMon as PartyMon).max_hp!
         : def.maxHP()
     return {
       label,
@@ -154,18 +190,23 @@ const trainerKeys = Object.keys(db).filter((k) => db[k].pokemon.length > 0)
 
 export default function App() {
   // Player state
-  const [playerTeam, setPlayerTeam] = useState<PartyMon[]>([])
-  const [playerIdx, setPlayerIdx] = useState(0)
+  const [partyMons, setPartyMons]   = useState<PartyMon[]>([])
+  const [boxMons, setBoxMons]       = useState<PartyMon[]>([])
+  const [playerSource, setPlayerSource] = useState<'party' | 'box'>('party')
+  const [playerIdx, setPlayerIdx]   = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading]   = useState(false)
+
+  // Editable moves for the calculator (player side)
+  const [calcMoves, setCalcMoves]   = useState<string[]>(['', '', '', ''])
 
   // Enemy state
   const [trainerKey, setTrainerKey] = useState(trainerKeys[0] ?? '')
-  const [enemyIdx, setEnemyIdx] = useState(0)
+  const [enemyIdx, setEnemyIdx]     = useState(0)
 
   // Output
   const [damageResults, setDamageResults] = useState<DamageResult[]>([])
-  const [aiProbs, setAiProbs] = useState<{ move: string; probability: number }[]>([])
+  const [aiProbs, setAiProbs]             = useState<{ move: string; probability: number }[]>([])
 
   // ── File drop ──────────────────────────────────────────────────────────
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -176,13 +217,16 @@ export default function App() {
     try {
       const form = new FormData()
       form.append('save', file)
-      const { data } = await axios.post<{ party: PartyMon[] }>(
+      const { data } = await axios.post<{ party: PartyMon[]; boxes: PartyMon[] }>(
         'http://localhost:5000/api/upload-save',
         form,
         { headers: { 'Content-Type': 'multipart/form-data' } },
       )
-      setPlayerTeam(data.party)
+      setPartyMons(data.party ?? [])
+      setBoxMons(data.boxes ?? [])
+      setPlayerSource('party')
       setPlayerIdx(0)
+      setCalcMoves(['', '', '', ''])
     } catch (err: unknown) {
       const msg =
         axios.isAxiosError(err) && err.response?.data?.error
@@ -201,18 +245,39 @@ export default function App() {
   })
 
   // ── Derived data ───────────────────────────────────────────────────────
+  const visibleMons  = playerSource === 'party' ? partyMons : boxMons
+  const playerMon    = visibleMons[playerIdx] ?? null
   const trainer      = db[trainerKey]
-  const playerMon    = playerTeam[playerIdx] ?? null
   const enemyPokemon = trainer?.pokemon ?? []
   const enemyMon     = enemyPokemon[enemyIdx] ?? null
+
+  // Learnset moves available at or below current level
+  const learnableMoves: LearnsetEntry[] = playerMon
+    ? getLearnableAtLevel(playerMon.species, playerMon.level)
+    : []
+
+  // When a different player mon is selected, pre-populate calcMoves
+  const selectPlayerMon = (idx: number) => {
+    setPlayerIdx(idx)
+    const mon = visibleMons[idx]
+    if (mon) {
+      const mv = [...mon.moves, '', '', '', ''].slice(0, 4)
+      setCalcMoves(mv)
+    }
+    setDamageResults([])
+    setAiProbs([])
+  }
 
   // ── Compute button ─────────────────────────────────────────────────────
   function handleCompute() {
     if (!playerMon || !enemyMon) return
     const results: DamageResult[] = []
 
-    // Player → Enemy damage for each player move
-    for (const mv of (playerMon.moves ?? []).filter(Boolean)) {
+    // Use the editable calcMoves for the player side
+    const playerMovesForCalc = calcMoves.filter(Boolean)
+
+    // Player → Enemy damage for each selected player move
+    for (const mv of playerMovesForCalc) {
       const r = computeDamage(playerMon, enemyMon, mv, `Player: ${mv}`)
       if (r) results.push(r)
     }
@@ -225,15 +290,17 @@ export default function App() {
 
     setDamageResults(results)
 
-    // AI probability prediction
+    // AI probability prediction (uses enemy's actual moves)
     const pMon: BattleMon = {
       species:   playerMon.species,
       level:     playerMon.level,
       nature:    playerMon.nature,
       ability:   playerMon.ability,
       item:      playerMon.item,
-      hpPercent: playerMon.max_hp > 0 ? (playerMon.hp / playerMon.max_hp) * 100 : 100,
-      moves:     playerMon.moves,
+      hpPercent: (playerMon.max_hp ?? 0) > 0
+        ? (playerMon.hp! / playerMon.max_hp!) * 100
+        : 100,
+      moves:     playerMovesForCalc,
       evs:       playerMon.evs as BattleMon['evs'],
       ivs:       playerMon.ivs as BattleMon['ivs'],
     }
@@ -252,6 +319,8 @@ export default function App() {
     const probs = predictEnemyMove(pMon, eMon, {}, flags)
     setAiProbs(probs)
   }
+
+  const hasTeam = partyMons.length > 0 || boxMons.length > 0
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -276,23 +345,99 @@ export default function App() {
               : 'Drop your .sav file here, or click to select'}
           </div>
           {uploadError && <p className="error">{uploadError}</p>}
-          {playerTeam.length > 0 && (
+
+          {hasTeam && (
             <>
+              {/* Party / Box tabs */}
+              <div className="source-tabs">
+                <button
+                  className={playerSource === 'party' ? 'active' : ''}
+                  onClick={() => { setPlayerSource('party'); setPlayerIdx(0); setDamageResults([]); setAiProbs([]) }}
+                >
+                  Party ({partyMons.length})
+                </button>
+                <button
+                  className={playerSource === 'box' ? 'active' : ''}
+                  onClick={() => { setPlayerSource('box'); setPlayerIdx(0); setDamageResults([]); setAiProbs([]) }}
+                >
+                  Boxes ({boxMons.length})
+                </button>
+              </div>
+
+              {/* Pokémon selector */}
               <div className="slot-selector">
-                {playerTeam.map((m, i) => (
+                {visibleMons.map((m, i) => (
                   <button
                     key={i}
-                    onClick={() => setPlayerIdx(i)}
+                    onClick={() => selectPlayerMon(i)}
                     className={i === playerIdx ? 'active' : ''}
+                    title={m.box !== undefined ? `Box ${m.box + 1}` : 'Party'}
                   >
                     {m.species}
+                    {m.box !== undefined && (
+                      <span className="box-label"> B{m.box + 1}</span>
+                    )}
                   </button>
                 ))}
               </div>
-              {playerMon && <MonCard mon={playerMon} />}
+
+              {playerMon && (
+                <>
+                  <MonCard mon={playerMon} />
+
+                  {/* Learnset section */}
+                  {learnableMoves.length > 0 && (
+                    <div className="learnset-section">
+                      <h3>♥ Learnable Moves (Heart Scale)</h3>
+                      <div className="learnset-list">
+                        {learnableMoves.map((e, i) => (
+                          <span
+                            key={i}
+                            className="learnset-tag"
+                            title={`Learned at Lv ${e.level}`}
+                            onClick={() => {
+                              // Clicking a learnset move fills the first empty calcMove slot
+                              setCalcMoves((prev) => {
+                                const next = [...prev]
+                                const emptyIdx = next.findIndex((m) => !m)
+                                if (emptyIdx !== -1) next[emptyIdx] = e.move
+                                else next[3] = e.move
+                                return next
+                              })
+                            }}
+                          >
+                            Lv{e.level} {e.move}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Editable moves for the calculator */}
+                  <div className="calc-moves-section">
+                    <h3>🔧 Moves for Calculator</h3>
+                    <div className="calc-moves-grid">
+                      {calcMoves.map((mv, i) => (
+                        <input
+                          key={i}
+                          className="calc-move-input"
+                          value={mv}
+                          placeholder={`Move ${i + 1}`}
+                          onChange={(e) => {
+                            const next = [...calcMoves]
+                            next[i] = e.target.value
+                            setCalcMoves(next)
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
-          {playerTeam.length === 0 && !uploadError && (
+
+          {!hasTeam && !uploadError && (
             <p className="hint">Upload a .sav to see your team.</p>
           )}
         </section>
@@ -348,7 +493,7 @@ export default function App() {
         <button
           className="compute-btn"
           onClick={handleCompute}
-          disabled={!playerMon || !enemyMon}
+          disabled={!playerMon || !enemyMon || calcMoves.every((m) => !m)}
         >
           Calculate Damage &amp; AI Probabilities
         </button>

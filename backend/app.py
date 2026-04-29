@@ -29,11 +29,11 @@ def upload_save():
 
     try:
         from parse_save import parse_save_bytes
-        party = parse_save_bytes(raw_bytes)
+        result = parse_save_bytes(raw_bytes)
     except RuntimeError as exc:
         return jsonify({'error': str(exc)}), 500
 
-    return jsonify({'party': party})
+    return jsonify(result)
 
 
 @app.route('/api/health', methods=['GET'])

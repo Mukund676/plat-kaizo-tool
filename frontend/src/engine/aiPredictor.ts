@@ -304,7 +304,7 @@ function makePokemon(mon: BattleMon): Pokemon {
 
 /** Get smogon move data (category, type, etc.) */
 function getMoveEntry(moveName: string) {
-  const key = moveName.toLowerCase().replace(/[\s'\-]/g, '') as never;
+  const key = moveName.toLowerCase().replace(/[\s'-]/g, '') as never;
   return gen4.moves.get(key) ?? null;
 }
 
@@ -364,27 +364,6 @@ function getMaxDamage(
   }
 }
 
-/**
- * Check basic type effectiveness from @smogon/calc.
- * Returns the multiplier (0 = immune, 0.25, 0.5, 1, 2, 4).
- */
-function getTypeEffectiveness(
-  moveName: string,
-  defender: BattleMon,
-  attacker: BattleMon,
-  field: Field,
-): number {
-  try {
-    const atk = makePokemon(attacker);
-    const def = makePokemon(defender);
-    const mv  = new Move(4, moveName);
-    const result = calculate(4, atk, def, mv, field);
-    return result.rawDesc.isCritical ? 1 : (result as never as { n: number }).n ?? 1;
-  } catch {
-    return 1;
-  }
-}
-
 /** Check if a defender's ability makes them immune to this move */
 function hasAbilityImmunity(
   moveName: string,
@@ -431,6 +410,7 @@ function applyBasicFlag(
   enemyMon: BattleMon,
   playerMon: BattleMon,
   field: Field,
+  isTrickRoom: boolean,
 ): void {
   for (const mv of moves) {
     const md = getMoveEntry(mv);
@@ -534,12 +514,12 @@ function applyBasicFlag(
     const attackBoostingMove = ATTACK_BOOST_MOVES.has(mv);
     const speedBoostingMove  = SPEED_BOOST_MOVES.has(mv);
     if (attackBoostingMove || speedBoostingMove) {
-      if (speedBoostingMove && field.isTrickRoom) scores[mv] -= 10;
+      if (speedBoostingMove && isTrickRoom) scores[mv] -= 10;
       const atkStage = (enemyMon.boosts?.atk ?? 0);
       if (attackBoostingMove && atkStage >= 6) scores[mv] -= 10;
     }
     if (DUAL_BOOST_MOVES.has(mv)) {
-      if (mv === 'Dragon Dance' && field.isTrickRoom) scores[mv] -= 10;
+      if (mv === 'Dragon Dance' && isTrickRoom) scores[mv] -= 10;
       if ((enemyMon.boosts?.atk ?? 0) >= 6) scores[mv] -= 10;
     }
 
@@ -618,7 +598,6 @@ function applyExpertFlag(
   moves: string[],
   enemyMon: BattleMon,
   playerMon: BattleMon,
-  field: Field,
 ): void {
   const eFaster = enemyIsFaster(enemyMon, playerMon);
 
@@ -1014,13 +993,12 @@ export function predictEnemyMove(
 
   const field = new Field({
     weather: fieldState.weather as never,
-    isTrickRoom: fieldState.isTrickRoom,
   });
 
   // Apply each flag in the order the document describes them
-  if (aiFlags.basic)            applyBasicFlag(scores, moves, enemyMon, playerMon, field);
+  if (aiFlags.basic)            applyBasicFlag(scores, moves, enemyMon, playerMon, field, fieldState.isTrickRoom ?? false);
   if (aiFlags.eval_att)         applyEvalAttFlag(scores, moves, enemyMon, playerMon, field);
-  if (aiFlags.expert)           applyExpertFlag(scores, moves, enemyMon, playerMon, field);
+  if (aiFlags.expert)           applyExpertFlag(scores, moves, enemyMon, playerMon);
   if (aiFlags.setup_first_turn) applySetupFirstTurnFlag(scores, moves, fieldState);
   if (aiFlags.risky)            applyRiskyFlag(scores, moves);
   if (aiFlags.damage_prio)      applyPrioritizeExtremesFlag(scores, moves);
