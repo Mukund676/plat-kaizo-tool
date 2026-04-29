@@ -29,14 +29,18 @@ BOSS_SPLITS = [
 
 # Exact column names in RAW TRAINER DATA → short flag identifier used in JSON
 AI_FLAG_COLS = {
-    'Prioritize Effectiveness': 'basic',
-    'Evaluate Attacks':         'eval_att',
-    'Expert':                   'expert',
-    'Prioritize Status':        'status',
-    'Risky Attacks':            'risky',
-    'Prioritize Damage':        'damage_prio',
-    'Utilize Weather':          'weather',
-    'Harassment':               'harassment',
+    # --- Flags documented in gen4_trainer_ai.md.txt ---
+    'Prioritize Effectiveness': 'basic',          # Basic Flag
+    'Evaluate Attacks':         'eval_att',        # Evaluate Attack Flag
+    'Expert':                   'expert',          # Expert Flag
+    'Prioritize Status':        'status',          # Prioritize Status (Kaizo extra flag)
+    'Risky Attacks':            'risky',           # Risky Flag
+    'Prioritize Damage':        'damage_prio',     # Prioritize Extremes Flag
+    'Partner':                  'tag_strategy',    # Tag Strategy Flag (doubles)
+    'Double Battle':            'double_battle',   # whether this encounter is doubles
+    'Prioritize Healing':       'check_hp',        # Check HP Flag
+    'Utilize Weather':          'weather',         # Weather Flag
+    'Harassment':               'harassment',      # Harassment Flag
 }
 
 

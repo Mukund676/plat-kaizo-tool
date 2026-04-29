@@ -642,7 +642,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -1356,7 +1357,8 @@
       "eval_att",
       "expert",
       "status",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -1594,7 +1596,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -1630,7 +1633,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -2069,7 +2073,9 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -2203,7 +2209,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -2339,7 +2346,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -2503,7 +2511,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -2815,7 +2824,9 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -3015,7 +3026,9 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -3070,7 +3083,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -3138,7 +3152,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -3317,7 +3332,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -3608,7 +3624,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -3811,6 +3828,8 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -3908,6 +3927,9 @@
       "eval_att",
       "expert",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -4005,6 +4027,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -4101,6 +4124,9 @@
       "basic",
       "eval_att",
       "expert",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -4196,6 +4222,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "weather",
       "harassment"
     ],
@@ -4294,7 +4321,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -4486,7 +4514,9 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -4582,7 +4612,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -4775,6 +4806,7 @@
       "expert",
       "status",
       "damage_prio",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -4872,7 +4904,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -4987,6 +5020,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -5085,6 +5119,9 @@
       "expert",
       "risky",
       "damage_prio",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -5181,6 +5218,9 @@
       "basic",
       "eval_att",
       "expert",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -5276,7 +5316,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -5372,7 +5413,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -5532,7 +5574,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -5610,7 +5653,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -8386,6 +8430,7 @@
       "eval_att",
       "expert",
       "status",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -8743,7 +8788,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -9482,7 +9528,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -9697,6 +9744,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -9751,7 +9799,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -9820,6 +9869,7 @@
       "eval_att",
       "expert",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -9923,7 +9973,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -9995,7 +10046,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -10281,6 +10333,9 @@
       "status",
       "risky",
       "damage_prio",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "weather",
       "harassment"
     ],
@@ -10931,7 +10986,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -10985,6 +11041,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -11065,7 +11122,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -11147,7 +11205,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -11199,6 +11258,7 @@
     "name": "Puck",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -11282,7 +11342,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -11417,6 +11478,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -12111,7 +12173,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -12575,7 +12638,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -14438,7 +14502,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -14683,7 +14748,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -14845,7 +14912,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -15007,7 +15075,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -15089,7 +15158,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -15336,7 +15406,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -15431,7 +15502,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -15607,7 +15679,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -15864,7 +15937,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -16271,6 +16345,9 @@
       "eval_att",
       "expert",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -16390,7 +16467,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -16511,7 +16589,8 @@
       "eval_att",
       "expert",
       "status",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -16819,7 +16898,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -16997,6 +17077,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -17066,6 +17147,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -17135,6 +17217,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -17219,6 +17302,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -17300,7 +17384,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -17654,7 +17739,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -17735,7 +17821,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -19596,7 +19683,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -19762,6 +19850,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -20652,7 +20741,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -20734,7 +20824,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -20852,7 +20943,9 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "tag_strategy",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -21103,7 +21196,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -21193,7 +21287,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -21458,7 +21553,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -21715,7 +21811,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -21784,6 +21881,7 @@
       "eval_att",
       "expert",
       "damage_prio",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -21934,6 +22032,9 @@
       "eval_att",
       "expert",
       "status",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -22080,6 +22181,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -22148,7 +22250,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -22328,6 +22431,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -22489,6 +22593,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -22580,7 +22685,9 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -22655,6 +22762,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -22708,7 +22816,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -22776,6 +22885,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -22944,7 +23054,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -23039,7 +23150,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -23423,7 +23535,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -23505,7 +23619,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -23602,6 +23718,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "weather",
       "harassment"
     ],
@@ -23683,6 +23800,7 @@
     "name": "Puck",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -23752,6 +23870,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -23904,7 +24023,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -23973,6 +24093,9 @@
       "eval_att",
       "expert",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -24041,6 +24164,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -24258,6 +24382,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -24327,6 +24452,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -24422,7 +24548,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -24586,7 +24713,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -24753,7 +24881,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -24823,6 +24952,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -25137,6 +25267,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -25206,6 +25337,9 @@
       "eval_att",
       "expert",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -25535,6 +25669,8 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -25703,7 +25839,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -25983,6 +26121,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -26121,6 +26260,9 @@
       "status",
       "risky",
       "damage_prio",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "weather",
       "harassment"
     ],
@@ -26179,6 +26321,9 @@
       "status",
       "risky",
       "damage_prio",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "weather",
       "harassment"
     ],
@@ -26369,7 +26514,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -26409,6 +26555,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -26543,6 +26690,7 @@
       "eval_att",
       "expert",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -28288,7 +28436,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -28383,7 +28533,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -28478,7 +28629,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -28664,7 +28816,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -28777,6 +28930,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -28817,7 +28971,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -29060,7 +29215,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -29257,7 +29413,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -29448,7 +29605,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -29662,7 +29820,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -29799,6 +29958,7 @@
       "expert",
       "status",
       "risky",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -30072,6 +30232,7 @@
       "eval_att",
       "expert",
       "status",
+      "tag_strategy",
       "weather",
       "harassment"
     ],
@@ -30155,7 +30316,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -30238,7 +30400,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -30401,6 +30564,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -30534,7 +30698,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -30589,6 +30755,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -30645,6 +30812,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -30821,7 +30989,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -31078,6 +31247,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "weather",
       "harassment"
     ],
@@ -31189,6 +31359,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -31284,7 +31455,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -31365,7 +31537,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -31664,7 +31837,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -31717,7 +31891,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -31934,6 +32109,7 @@
       "expert",
       "status",
       "risky",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -31990,6 +32166,9 @@
       "expert",
       "status",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "weather",
       "harassment"
     ],
@@ -32088,6 +32267,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -32183,7 +32363,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -32265,7 +32446,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -32529,6 +32711,7 @@
       "eval_att",
       "expert",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -32688,7 +32871,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -32743,6 +32927,8 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -32931,6 +33117,8 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -32983,6 +33171,7 @@
     "name": "Puck",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -33030,7 +33219,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -33127,6 +33317,7 @@
       "eval_att",
       "expert",
       "status",
+      "tag_strategy",
       "weather",
       "harassment"
     ],
@@ -33211,6 +33402,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -33387,7 +33579,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -33548,7 +33741,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -33682,7 +33876,9 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -33862,6 +34058,9 @@
       "eval_att",
       "expert",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -34297,6 +34496,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -34395,6 +34595,8 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -34493,6 +34695,8 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -35329,6 +35533,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -35507,6 +35712,8 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -35603,7 +35810,9 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -35671,7 +35880,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -36131,7 +36342,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -36224,7 +36436,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -36317,7 +36530,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -36879,7 +37093,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -36974,7 +37189,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -37069,7 +37285,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -37165,6 +37382,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -37218,7 +37436,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -37377,7 +37596,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -37482,6 +37702,7 @@
     "name": "Hydra",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -37562,6 +37783,7 @@
     "name": "Hydra",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -37656,6 +37878,7 @@
     "name": "Hydra",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -37722,6 +37945,7 @@
     "name": "Hydra",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -37815,6 +38039,7 @@
     "name": "Hydra",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -38151,7 +38376,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -38394,6 +38620,8 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -38623,7 +38851,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -39058,7 +39287,8 @@
     "name": "Barnabeaux",
     "ai_flags": [
       "basic",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -40259,6 +40489,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -40300,6 +40531,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -40341,6 +40573,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -40382,6 +40615,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -40423,6 +40657,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -40464,6 +40699,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -40505,6 +40741,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -40546,6 +40783,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -41591,7 +41829,8 @@
       "eval_att",
       "expert",
       "status",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -42183,6 +42422,8 @@
       "expert",
       "status",
       "damage_prio",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -42239,6 +42480,8 @@
       "expert",
       "status",
       "damage_prio",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -43126,7 +43369,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -43622,7 +43866,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -44643,6 +44888,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -44711,6 +44957,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -45512,7 +45759,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -45594,6 +45842,7 @@
       "eval_att",
       "expert",
       "damage_prio",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -45772,7 +46021,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -45870,6 +46120,7 @@
       "expert",
       "status",
       "risky",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -46660,7 +46911,9 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -46837,7 +47090,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -47029,6 +47284,8 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -47125,7 +47382,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -47412,7 +47670,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -48521,7 +48781,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -48652,7 +48913,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -48677,7 +48939,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -49067,7 +49330,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -50710,7 +50974,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -51580,7 +51845,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -51641,6 +51907,9 @@
       "eval_att",
       "expert",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -51878,6 +52147,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -52126,6 +52396,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -52194,6 +52465,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -52809,6 +53081,8 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -52980,6 +53254,7 @@
       "eval_att",
       "expert",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -53155,6 +53430,7 @@
     "name": "Galactic Puck (Next to the sign)",
     "ai_flags": [
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -53267,6 +53543,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -53484,6 +53761,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -53533,6 +53811,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -54654,7 +54933,8 @@
       "eval_att",
       "expert",
       "status",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -54845,7 +55125,8 @@
       "eval_att",
       "expert",
       "status",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": []
   },
@@ -55103,7 +55384,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -55163,7 +55445,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -55218,7 +55501,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -55349,7 +55633,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -55617,7 +55902,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -56223,7 +56509,9 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -56282,7 +56570,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -56399,7 +56688,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -56956,7 +57246,9 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -57015,7 +57307,9 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -57063,7 +57357,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -57331,7 +57626,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -57644,7 +57940,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -57748,7 +58045,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -57873,6 +58171,8 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -58207,7 +58507,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -58285,7 +58586,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -58369,6 +58671,7 @@
       "expert",
       "status",
       "risky",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -59333,7 +59636,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -59509,6 +59813,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -59543,6 +59848,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -59582,6 +59888,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -59616,6 +59923,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -59655,6 +59963,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -59689,6 +59998,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -59723,6 +60033,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -60583,7 +60894,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -60660,7 +60972,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -61268,7 +61581,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -61342,7 +61656,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -61392,7 +61707,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -61418,7 +61734,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -61508,7 +61825,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -61576,7 +61894,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -61763,6 +62082,9 @@
       "eval_att",
       "expert",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -61917,6 +62239,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -61994,7 +62317,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -62073,6 +62397,7 @@
       "expert",
       "status",
       "damage_prio",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -62154,7 +62479,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -62230,7 +62556,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -62312,6 +62639,9 @@
       "basic",
       "eval_att",
       "expert",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -62461,7 +62791,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -62540,6 +62871,9 @@
       "expert",
       "risky",
       "damage_prio",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -62618,6 +62952,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "weather",
       "harassment"
     ],
@@ -62702,7 +63037,8 @@
       "eval_att",
       "expert",
       "status",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -63085,6 +63421,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -63155,7 +63492,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -63368,7 +63706,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "tag_strategy"
     ],
     "pokemon": [
       {
@@ -63434,6 +63773,7 @@
       "eval_att",
       "expert",
       "damage_prio",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -63716,7 +64056,9 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -63789,6 +64131,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -63954,7 +64297,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -64118,7 +64462,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -64336,7 +64681,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -64451,7 +64797,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -64508,6 +64855,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -64568,6 +64916,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -64628,6 +64977,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -64748,7 +65098,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -65042,7 +65393,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -65123,7 +65476,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -65236,7 +65590,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -65345,6 +65700,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -65388,7 +65744,9 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -65497,7 +65855,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -65691,7 +66050,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -65854,7 +66214,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -66046,6 +66408,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -66106,7 +66469,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -66167,6 +66531,9 @@
       "eval_att",
       "expert",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -66277,6 +66644,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -66361,6 +66729,7 @@
       "expert",
       "status",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -66526,6 +66895,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -67164,6 +67534,7 @@
       "eval_att",
       "expert",
       "status",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -67776,7 +68147,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -68127,6 +68499,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -68171,7 +68544,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -68379,7 +68753,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -68450,7 +68825,8 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -68506,6 +68882,7 @@
       "eval_att",
       "expert",
       "risky",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -68566,6 +68943,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -68610,7 +68988,9 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "tag_strategy",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -68759,7 +69139,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -69204,7 +69585,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -69888,6 +70270,9 @@
       "eval_att",
       "expert",
       "status",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -69933,6 +70318,7 @@
       "eval_att",
       "expert",
       "damage_prio",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -69966,7 +70352,8 @@
       "basic",
       "eval_att",
       "expert",
-      "damage_prio"
+      "damage_prio",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -69999,6 +70386,7 @@
       "basic",
       "eval_att",
       "expert",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -70104,6 +70492,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -70140,6 +70529,9 @@
       "status",
       "risky",
       "damage_prio",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "weather",
       "harassment"
     ],
@@ -70193,6 +70585,9 @@
       "status",
       "risky",
       "damage_prio",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "weather",
       "harassment"
     ],
@@ -70240,6 +70635,8 @@
       "expert",
       "status",
       "damage_prio",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -70291,6 +70688,8 @@
       "expert",
       "status",
       "damage_prio",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -70334,7 +70733,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -70731,6 +71131,9 @@
       "expert",
       "status",
       "risky",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "weather",
       "harassment"
     ],
@@ -70898,6 +71301,7 @@
       "eval_att",
       "expert",
       "status",
+      "tag_strategy",
       "weather",
       "harassment"
     ],
@@ -71127,6 +71531,8 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -71255,6 +71661,7 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
       "harassment"
     ],
     "pokemon": [
@@ -71768,6 +72175,8 @@
       "eval_att",
       "expert",
       "status",
+      "double_battle",
+      "check_hp",
       "harassment"
     ],
     "pokemon": [
@@ -72102,7 +72511,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "double_battle"
     ],
     "pokemon": [
       {
@@ -72416,7 +72826,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -72783,7 +73194,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -72865,7 +73277,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "double_battle",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -73497,6 +73911,9 @@
       "status",
       "risky",
       "damage_prio",
+      "tag_strategy",
+      "double_battle",
+      "check_hp",
       "weather",
       "harassment"
     ],
@@ -73541,7 +73958,8 @@
     "ai_flags": [
       "basic",
       "eval_att",
-      "expert"
+      "expert",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -74670,7 +75088,8 @@
       "basic",
       "eval_att",
       "expert",
-      "risky"
+      "risky",
+      "check_hp"
     ],
     "pokemon": [
       {
@@ -74900,7 +75319,9 @@
       "basic",
       "eval_att",
       "expert",
-      "status"
+      "status",
+      "tag_strategy",
+      "check_hp"
     ],
     "pokemon": [
       {
