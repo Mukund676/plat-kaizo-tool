@@ -8,18 +8,14 @@
  * Call `injectKaizoData()` once at application startup before any calc.
  */
 
-import type { TypeName, MoveCategory } from '@smogon/calc';
-// Access internal mutable arrays via require to allow mutation
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const speciesModule = require('@smogon/calc/dist/data/species');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const movesModule = require('@smogon/calc/dist/data/moves');
+import { SPECIES, MOVES } from '@smogon/calc';
+import kaizoRaw from '../../../data/kaizo_data.json';
 
-import kaizoRaw from '../../data/kaizo_data.json';
-
-// Gen indices in the SPECIES / MOVES arrays (0-based, index 0 is empty)
-// DPP = Gen 4 → index 4
+// Gen 4 index inside the SPECIES / MOVES arrays
 const GEN4_IDX = 4;
+
+type TypeName = string;
+type MoveCategory = 'Physical' | 'Special' | 'Status';
 
 interface PokemonEntry {
   id: number;
@@ -69,18 +65,17 @@ export function injectKaizoData(): void {
   if (injected) return;
   injected = true;
 
-  const SPECIES: Record<string, unknown>[] = speciesModule.SPECIES;
-  const MOVES: Record<string, unknown>[] = movesModule.MOVES;
+  const gen4Species = (SPECIES as unknown as Array<Record<string, {
+    bs?: Record<string, number>;
+    types?: [TypeName] | [TypeName, TypeName];
+    abilities?: Record<string, string>;
+  }>>)[GEN4_IDX];
 
-  const gen4Species = SPECIES[GEN4_IDX] as Record<
-    string,
-    { bs?: Record<string, number>; types?: [TypeName] | [TypeName, TypeName]; abilities?: Record<string, string> }
-  >;
-
-  const gen4Moves = MOVES[GEN4_IDX] as Record<
-    string,
-    { bp?: number; type?: TypeName; category?: MoveCategory }
-  >;
+  const gen4Moves = (MOVES as unknown as Array<Record<string, {
+    bp?: number;
+    type?: TypeName;
+    category?: MoveCategory;
+  }>>)[GEN4_IDX];
 
   // --- Inject Pokémon stat/type overrides ---
   for (const [rawName, data] of Object.entries(kaizoData.pokemon)) {
@@ -90,13 +85,8 @@ export function injectKaizoData(): void {
       gen4Species[calcName] = {};
     }
 
-    const entry = gen4Species[calcName] as {
-      bs?: Record<string, number>;
-      types?: [TypeName] | [TypeName, TypeName];
-      abilities?: Record<string, string>;
-    };
+    const entry = gen4Species[calcName];
 
-    // Override base stats
     entry.bs = {
       hp: data.hp,
       at: data.attack,
@@ -106,15 +96,13 @@ export function injectKaizoData(): void {
       sp: data.speed,
     };
 
-    // Override types
-    const t1 = data.type1 as TypeName;
+    const t1 = data.type1;
     if (data.type2 && data.type2 !== data.type1) {
-      entry.types = [t1, data.type2 as TypeName];
+      entry.types = [t1, data.type2];
     } else {
       entry.types = [t1];
     }
 
-    // Override abilities
     if (data.ability1) {
       entry.abilities = { 0: data.ability1 };
     }
@@ -132,7 +120,7 @@ export function injectKaizoData(): void {
       entry.bp = data.power;
     }
     if (data.type) {
-      entry.type = data.type as TypeName;
+      entry.type = data.type;
     }
     if (data.category) {
       entry.category = data.category as MoveCategory;
@@ -144,3 +132,4 @@ export function injectKaizoData(): void {
       ` and ${Object.keys(kaizoData.moves).length} moves into @smogon/calc Gen 4 data.`
   );
 }
+

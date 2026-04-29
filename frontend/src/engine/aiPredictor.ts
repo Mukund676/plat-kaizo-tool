@@ -169,7 +169,6 @@ export function predictEnemyMove(
 
   const field = new Field({
     weather: fieldState.weather as never,
-    isTrickRoom: fieldState.isTrickRoom,
   });
 
   // ── Basic Flag ──────────────────────────────────────────────────────────

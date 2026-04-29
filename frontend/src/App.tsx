@@ -45,9 +45,9 @@ interface TrainerPokemon {
 }
 
 interface TrainerEntry {
-  id: number
+  id?: number
   name: string
-  ai_flags: Record<string, boolean>
+  ai_flags: string[]
   pokemon: TrainerPokemon[]
 }
 
@@ -246,7 +246,9 @@ export default function App() {
       hpPercent: 100,
       moves:     enemyMon.moves,
     }
-    const flags: AIFlags = (trainer?.ai_flags ?? {}) as AIFlags
+    const flags: AIFlags = Object.fromEntries(
+      (trainer?.ai_flags ?? []).map((f) => [f, true]),
+    ) as AIFlags
     const probs = predictEnemyMove(pMon, eMon, {}, flags)
     setAiProbs(probs)
   }
@@ -318,13 +320,11 @@ export default function App() {
           {trainer && (
             <>
               <div className="ai-flags">
-                {Object.entries(trainer.ai_flags)
-                  .filter(([, v]) => v)
-                  .map(([flag]) => (
-                    <span key={flag} className="flag-tag">
-                      {flag}
-                    </span>
-                  ))}
+                {(trainer.ai_flags ?? []).map((flag) => (
+                  <span key={flag} className="flag-tag">
+                    {flag}
+                  </span>
+                ))}
               </div>
               <div className="slot-selector">
                 {enemyPokemon.map((m, i) => (
