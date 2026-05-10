@@ -5,119 +5,102 @@ Platinum Kaizo team parser + battle helper app.
 - **Backend**: Flask API that parses Gen 4 `.sav` files and returns party/box data
 - **Frontend**: React + Vite UI that uploads saves and renders calculator/router views
 
-## Prerequisites
+## Requirements
 
-Install these before setup:
+- Python 3.11 or 3.12
+- Node.js 20+ and npm
+- .NET runtime (required by `pythonnet` to load `backend/PKHeX.Core.dll`)
 
-- **Python** 3.11+
-- **Node.js** 20+ and npm
-- **.NET runtime** (required by `pythonnet` to load `backend/PKHeX.Core.dll`)
+Python 3.13+ is not supported here because `pythonnet` does not build cleanly in this project setup.
 
-## Repository path
+This README shows commands you can run from the repository root. Replace `python` with the full path to your Python executable if needed.
 
-This README assumes the repo is located at:
+**Quickstart — Windows (PowerShell)**
 
-`/home/runner/work/plat-kaizo-tool/plat-kaizo-tool`
+1. Open PowerShell in the repository root (where this README is).
 
-## 1) Backend setup
+2. Create and activate a virtual environment:
 
-```bash
-cd /home/runner/work/plat-kaizo-tool/plat-kaizo-tool
+```powershell
 python -m venv .venv
-source .venv/bin/activate
+.\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r /home/runner/work/plat-kaizo-tool/plat-kaizo-tool/backend/requirements.txt
+pip install -r backend/requirements.txt
 ```
 
-> Windows PowerShell activation command:
-> `\.venv\Scripts\Activate.ps1`
+3. Generate required data files (run once after cloning or when spreadsheet data changes):
 
-## 2) Generate data files (required)
-
-Run this once after clone (or whenever spreadsheet data changes):
-
-```bash
-cd /home/runner/work/plat-kaizo-tool/plat-kaizo-tool
-python /home/runner/work/plat-kaizo-tool/plat-kaizo-tool/backend/build_database.py
+```powershell
+python backend\build_database.py
 ```
 
-This generates/refreshes:
+This produces/updates `data/kaizo_data.json` and `data/trainer_db.json`.
 
-- `/home/runner/work/plat-kaizo-tool/plat-kaizo-tool/data/kaizo_data.json`
-- `/home/runner/work/plat-kaizo-tool/plat-kaizo-tool/data/trainer_db.json`
+4. Run the backend API:
 
-## 3) Run backend API
-
-```bash
-cd /home/runner/work/plat-kaizo-tool/plat-kaizo-tool
-source .venv/bin/activate
-python /home/runner/work/plat-kaizo-tool/plat-kaizo-tool/backend/app.py
+```powershell
+python backend\app.py
 ```
 
-Backend runs at **http://localhost:5000**.
+By default the backend listens at `http://localhost:5000`.
 
-Health check (new terminal):
+Health check (PowerShell):
 
-```bash
-curl http://localhost:5000/api/health
+```powershell
+Invoke-RestMethod http://localhost:5000/api/health
 ```
 
-Expected:
+Expected JSON: `{"status":"ok"}`
 
-```json
-{"status":"ok"}
-```
+5. Start the frontend (in a separate terminal):
 
-## 4) Frontend setup
-
-In a separate terminal:
-
-```bash
-cd /home/runner/work/plat-kaizo-tool/plat-kaizo-tool/frontend
+```powershell
+cd frontend
 npm install
-```
-
-## 5) Frontend validation
-
-```bash
-cd /home/runner/work/plat-kaizo-tool/plat-kaizo-tool/frontend
-npm run lint
-npm run build
-```
-
-## 6) Run frontend
-
-```bash
-cd /home/runner/work/plat-kaizo-tool/plat-kaizo-tool/frontend
 npm run dev
 ```
 
 Open the URL printed by Vite (usually `http://localhost:5173`).
 
-## 7) End-to-end test on your system
+6. End-to-end usage
 
-1. Keep backend running on `http://localhost:5000`.
-2. Keep frontend running on Vite dev server (`http://localhost:5173` by default).
-3. In the UI, upload a valid Gen 4 `.sav` file.
-4. Confirm the app returns parsed party/box data and no backend error is shown.
+- Keep backend running at `http://localhost:5000` and frontend running via Vite.
+- In the UI, upload a Gen 4 `.sav` file and confirm parsed `party`/`boxes` data appear.
 
-Optional direct API upload test:
+You can also POST a save directly to the API (PowerShell/curl):
 
-```bash
-curl -X POST \
-  -F "save=@/absolute/path/to/your/savefile.sav" \
-  http://localhost:5000/api/upload-save
+```powershell
+curl -X POST -F "save=@C:\absolute\path\to\your\savefile.sav" http://localhost:5000/api/upload-save
 ```
 
-Expected response contains `party` and `boxes` arrays.
+The response should include `party` and `boxes` arrays.
+
+**Quickstart — macOS / Linux / Git Bash (bash)**
+
+On Windows, open Git Bash and run the Bash launcher from the repository root.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt
+python backend/build_database.py
+python backend/app.py
+```
+
+If you use the helper script, run `scripts/run-dev.sh`; it now auto-detects the venv activation script for both Unix and Windows Git Bash layouts.
+
+Frontend (bash):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ## Troubleshooting
 
-- **`ModuleNotFoundError` (Python deps)**
-  - Re-activate venv and reinstall requirements.
-- **`pythonnet` / .NET load error (runtime not found)**
-  - Install/repair .NET runtime, then restart backend.
-- **Frontend cannot reach backend**
-  - Ensure backend is running on port `5000`.
-- **Upload fails with “No file provided”**
-  - Multipart form key must be named `save`.
+- Module import errors: re-activate the venv and reinstall `backend/requirements.txt`.
+- `pythonnet` / .NET errors: install or repair the host .NET runtime and restart the backend.
+- Frontend cannot reach backend: ensure backend is running on port `5000` and no firewall blocks the port.
+- Upload fails with “No file provided”: ensure the multipart form key is named `save` when using curl or clients.
