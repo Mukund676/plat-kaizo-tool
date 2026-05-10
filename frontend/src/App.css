@@ -24,6 +24,7 @@ body {
   border-radius: 8px;
 }
 .app-header h1 { font-size: 1.5rem; letter-spacing: 0.5px; }
+.app-subtitle { color: #ce93d8; font-size: 0.82rem; margin-top: 4px; }
 
 /* ── Pane row ── */
 .pane-row {
