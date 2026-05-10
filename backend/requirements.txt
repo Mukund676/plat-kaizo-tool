@@ -1,0 +1,6 @@
+pandas
+openpyxl
+pythonnet
+Flask
+werkzeug
+flask-cors
