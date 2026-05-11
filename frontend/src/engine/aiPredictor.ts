@@ -284,7 +284,7 @@ const DESIRABLE_ABILITIES = new Set([
 
 /** p() helper: returns val with given probability, else 0 */
 function p(prob: number, val: number): number {
-  return Math.random() < prob ? val : 0;
+  return prob * val;
 }
 
 /** Build a @smogon/calc Pokemon from a BattleMon */
@@ -390,6 +390,9 @@ function hasAbilityImmunity(
 
   return false;
 }
+
+/** Moves that are only sensible with immediate turn-history context. */
+const CONTEXT_DEPENDENT_MOVES = new Set(['Counter', 'Mirror Coat', 'Metal Burst']);
 
 /** Is the enemy faster than the player? Returns true if enemy speed > player speed. */
 function enemyIsFaster(enemy: BattleMon, player: BattleMon): boolean {
@@ -1009,8 +1012,48 @@ export function predictEnemyMove(
   if (aiFlags.harassment)       applyHarassmentFlag(scores, moves);
   if (aiFlags.status)           applyStatusFlag(scores, moves, playerMon);
 
+  // Hard invalidation for moves that cannot function in current known context.
+  for (const mv of moves) {
+    if (CONTEXT_DEPENDENT_MOVES.has(mv) && !playerMon.lastUsedMove) {
+      scores[mv] = 0;
+      continue;
+    }
+
+    const md = getMoveEntry(mv);
+    if (!md || md.category === 'Status') continue;
+    try {
+      const atk = makePokemon(enemyMon);
+      const def = makePokemon(playerMon);
+      const smgMove = new Move(4, mv);
+      const result = calculate(4, atk, def, smgMove, field);
+      const rolls = result.damage as number[];
+      if (Array.isArray(rolls) && rolls.length > 0 && rolls[rolls.length - 1] === 0) {
+        scores[mv] = 0;
+      }
+    } catch {
+      // ignore calc failures
+    }
+  }
+
   // Clamp to 0 minimum
   for (const mv of moves) scores[mv] = Math.max(0, scores[mv]);
+
+  // If all scores are tied, use deterministic expected damage as a tiebreaker.
+  const uniqueScores = new Set(moves.map((mv) => scores[mv]));
+  if (uniqueScores.size === 1) {
+    const damages: Record<string, number> = {};
+    let maxDamage = 0;
+    for (const mv of moves) {
+      const dmg = getDamage(enemyMon, playerMon, mv, field);
+      damages[mv] = dmg;
+      if (dmg > maxDamage) maxDamage = dmg;
+    }
+    if (maxDamage > 0) {
+      for (const mv of moves) {
+        scores[mv] += (damages[mv] / maxDamage) * 10;
+      }
+    }
+  }
 
   // Convert to probabilities: proportional to score, equal share for ties
   const totalScore = moves.reduce((s, mv) => s + scores[mv], 0);

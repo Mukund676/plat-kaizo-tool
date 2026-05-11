@@ -37,7 +37,7 @@ body {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .pane h2 {
@@ -168,21 +168,21 @@ body {
 .manual-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .manual-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .manual-grid label,
 .stat-grid label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  gap: 3px;
+  font-size: 11px;
   color: #8b949e;
 }
 
@@ -194,8 +194,14 @@ body {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.stat-subheading {
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+  color: #8b949e;
 }
 
 .calc-moves-section {
@@ -230,7 +236,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  max-height: 120px;
+  max-height: 160px;
   overflow-y: auto;
 }
 

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 import { calculate, Pokemon, Move, Field } from '@smogon/calc'
@@ -26,12 +26,33 @@ interface PartyMon {
 interface LearnsetEntry {
   move: string
   level: number
+  source?: string
+  method?: 'level' | 'tm'
+}
+
+interface KaizoPokemon {
+  id: number
+  hp: number
+  attack: number
+  defense: number
+  sp_atk: number
+  sp_def: number
+  speed: number
+  type1: string
+  type2?: string | null
+  ability1?: string | null
+  ability2?: string | null
+  uncommon_item?: string | null
+  rare_item?: string | null
 }
 
 interface KaizoData {
-  pokemon: Record<string, unknown>
+  pokemon: Record<string, KaizoPokemon>
   moves: Record<string, unknown>
   learnsets: Record<string, LearnsetEntry[]>
+  tm_learnsets: Record<string, string[]>
+  pre_evolutions: Record<string, string[]>
+  items: string[]
 }
 
 interface TrainerPokemon {
@@ -110,10 +131,66 @@ const moveOptions = Object.keys(kaizoData.moves).sort()
 const defaultEvs: StatSpread = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
 const defaultIvs: StatSpread = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }
 
-function getLearnableAtLevel(species: string, level: number): LearnsetEntry[] {
-  const key = species.toUpperCase()
-  const learnset = kaizoData.learnsets[key] ?? []
-  return learnset.filter((e) => e.level <= level)
+function normalizeSpeciesKey(species: string): string {
+  return species.trim().toUpperCase()
+}
+
+function getSpeciesLineage(species: string): string[] {
+  const key = normalizeSpeciesKey(species)
+  if (!key) return []
+  const prevos = kaizoData.pre_evolutions[key] ?? []
+  return [key, ...prevos]
+}
+
+function getLearnableMoves(species: string, level: number): LearnsetEntry[] {
+  const lineage = getSpeciesLineage(species)
+  if (lineage.length === 0) return []
+
+  const byKey = new Map<string, LearnsetEntry>()
+
+  for (const mon of lineage) {
+    const levelUps = kaizoData.learnsets[mon] ?? []
+    for (const entry of levelUps) {
+      if (entry.level > level) continue
+      const key = `level:${entry.move.toLowerCase()}`
+      if (!byKey.has(key)) {
+        byKey.set(key, { ...entry, source: mon, method: 'level' })
+      }
+    }
+
+    const tmMoves = kaizoData.tm_learnsets[mon] ?? []
+    for (const tmMove of tmMoves) {
+      const key = `tm:${tmMove.toLowerCase()}`
+      if (!byKey.has(key)) {
+        byKey.set(key, { move: tmMove, level: 0, source: mon, method: 'tm' })
+      }
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => {
+    if ((a.method ?? 'level') !== (b.method ?? 'level')) {
+      return (a.method ?? 'level') === 'level' ? -1 : 1
+    }
+    if (a.level !== b.level) return a.level - b.level
+    return a.move.localeCompare(b.move)
+  })
+}
+
+function getNatureSpeedModifier(nature: string): number {
+  const plusSpeed = new Set(['Timid', 'Hasty', 'Jolly', 'Naive'])
+  const minusSpeed = new Set(['Brave', 'Relaxed', 'Quiet', 'Sassy'])
+  if (plusSpeed.has(nature)) return 1.1
+  if (minusSpeed.has(nature)) return 0.9
+  return 1
+}
+
+function computeApproxSpeed(mon: ManualMon, speciesData: KaizoPokemon | null): number | undefined {
+  if (!speciesData) return undefined
+  const base = speciesData.speed
+  const iv = mon.ivs.spe
+  const ev = mon.evs.spe
+  const neutral = Math.floor((((2 * base) + iv + Math.floor(ev / 4)) * mon.level) / 100) + 5
+  return Math.floor(neutral * getNatureSpeedModifier(mon.nature))
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -297,11 +374,37 @@ export default function App() {
     ? partyMons.slice(0, 6)
     : [...partyMons, ...boxMons].slice(0, 6)
 
-  const learnableMoves: LearnsetEntry[] = manualMon.species
-    ? getLearnableAtLevel(manualMon.species, manualMon.level)
-    : []
+  const manualSpecies = useMemo(
+    () => kaizoData.pokemon[normalizeSpeciesKey(manualMon.species)] ?? null,
+    [manualMon.species],
+  )
+  const enemySpecies = useMemo(
+    () => (enemyMon ? kaizoData.pokemon[normalizeSpeciesKey(enemyMon.species)] ?? null : null),
+    [enemyMon],
+  )
 
-  const damageResults = (() => {
+  const learnableMoves: LearnsetEntry[] = useMemo(
+    () => (manualMon.species ? getLearnableMoves(manualMon.species, manualMon.level) : []),
+    [manualMon.species, manualMon.level],
+  )
+
+  const abilityOptions = useMemo(() => {
+    const options = [manualSpecies?.ability1, manualSpecies?.ability2]
+      .filter((ability): ability is string => Boolean(ability && ability !== '-'))
+    return [...new Set(options)]
+  }, [manualSpecies])
+
+  const itemOptions = useMemo(() => {
+    const speciesItems = [manualSpecies?.uncommon_item, manualSpecies?.rare_item]
+      .filter((item): item is string => Boolean(item && item !== '-'))
+    return [...new Set([...speciesItems, ...kaizoData.items])]
+  }, [manualSpecies])
+
+  const baseStatSummary = manualSpecies
+    ? `HP ${manualSpecies.hp} / Atk ${manualSpecies.attack} / Def ${manualSpecies.defense} / SpA ${manualSpecies.sp_atk} / SpD ${manualSpecies.sp_def} / Spe ${manualSpecies.speed}`
+    : 'Select a species to view base stats'
+
+  const damageResults = useMemo(() => {
     if (!manualMon.species || !enemyMon) return []
 
     const playerForCalc: CalcMon = {
@@ -329,9 +432,9 @@ export default function App() {
     }
 
     return results
-  })()
+  }, [manualMon, enemyMon, fieldState])
 
-  const aiProbs = (() => {
+  const aiProbs = useMemo(() => {
     if (!manualMon.species || !enemyMon) return []
 
     const hpPercent = manualMon.maxHp > 0
@@ -349,6 +452,8 @@ export default function App() {
       evs: manualMon.evs,
       ivs: manualMon.ivs,
       status: manualMon.status || undefined,
+      speed: computeApproxSpeed(manualMon, manualSpecies),
+      types: manualSpecies ? [manualSpecies.type1, manualSpecies.type2].filter(Boolean) as string[] : undefined,
     }
 
     const eMon: BattleMon = {
@@ -359,6 +464,8 @@ export default function App() {
       item: enemyMon.item ?? undefined,
       hpPercent: 100,
       moves: enemyMon.moves,
+      speed: enemySpecies?.speed,
+      types: enemySpecies ? [enemySpecies.type1, enemySpecies.type2].filter(Boolean) as string[] : undefined,
     }
 
     const flags: AIFlags = Object.fromEntries(
@@ -366,7 +473,7 @@ export default function App() {
     ) as AIFlags
 
     return predictEnemyMove(pMon, eMon, fieldState, flags)
-  })()
+  }, [manualMon, manualSpecies, enemyMon, enemySpecies, fieldState, trainer?.ai_flags])
 
   return (
     <div className="app">
@@ -455,20 +562,32 @@ export default function App() {
 
               <label>
                 Ability
-                <input
+                <select
                   value={manualMon.ability}
                   onChange={(e) => setManualMon((prev) => ({ ...prev, ability: e.target.value }))}
-                  placeholder="Ability"
-                />
+                >
+                  <option value="">(None)</option>
+                  {abilityOptions.map((ability) => (
+                    <option key={ability} value={ability}>
+                      {ability}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
                 Item
-                <input
+                <select
                   value={manualMon.item}
                   onChange={(e) => setManualMon((prev) => ({ ...prev, item: e.target.value }))}
-                  placeholder="Held item"
-                />
+                >
+                  <option value="">(None)</option>
+                  {itemOptions.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label>
@@ -515,7 +634,8 @@ export default function App() {
             </div>
 
             <div className="stat-block">
-              <h3>EVs</h3>
+              <h3>Stats (Base: {baseStatSummary})</h3>
+              <h4 className="stat-subheading">EVs</h4>
               <div className="stat-grid">
                 {STAT_KEYS.map((stat) => (
                   <label key={`ev-${stat}`}>
@@ -542,7 +662,7 @@ export default function App() {
             </div>
 
             <div className="stat-block">
-              <h3>IVs</h3>
+              <h4 className="stat-subheading">IVs</h4>
               <div className="stat-grid">
                 {STAT_KEYS.map((stat) => (
                   <label key={`iv-${stat}`}>
@@ -590,13 +710,17 @@ export default function App() {
 
             {learnableMoves.length > 0 && (
               <div className="learnset-section">
-                <h3>♥ Learnable Moves (Heart Scale)</h3>
+                <h3>♥ Learnable Moves (Level-up + TM/HM + Prior Evolutions)</h3>
                 <div className="learnset-list">
                   {learnableMoves.map((entry, i) => (
                     <span
                       key={i}
                       className="learnset-tag"
-                      title={`Learned at Lv ${entry.level}`}
+                      title={
+                        entry.method === 'tm'
+                          ? `TM/HM learnset (${entry.source})`
+                          : `Learned at Lv ${entry.level} (${entry.source})`
+                      }
                       onClick={() => {
                         setManualMon((prev) => {
                           const next = [...prev.moves]
@@ -607,7 +731,7 @@ export default function App() {
                         })
                       }}
                     >
-                      Lv{entry.level} {entry.move}
+                      {entry.method === 'tm' ? 'TM/HM' : `Lv${entry.level}`} {entry.move}
                     </span>
                   ))}
                 </div>

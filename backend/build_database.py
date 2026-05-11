@@ -96,6 +96,8 @@ def parse_personal(xl):
             'type2':    _val(row.get('Type 2')),
             'ability1': _val(row.get('Ability 1')),
             'ability2': _val(row.get('Ability 2')),
+            'uncommon_item': _val(row.get('Uncommon Held Item')),
+            'rare_item': _val(row.get('Rare Held Item')),
         }
     return pokemon
 
@@ -450,6 +452,128 @@ def parse_learnsets(xl):
 
 
 # ---------------------------------------------------------------------------
+# Phase 1f: Parse TM Learnsets sheet → per-Pokémon TM/HM move list
+# ---------------------------------------------------------------------------
+
+def parse_tm_learnsets(xl):
+    """
+    Parse the 'TM Learnsets' sheet.
+
+    Row 0 contains TM/HM -> move-name mapping, and subsequent rows contain
+    boolean learnability per Pokémon.
+    """
+    df = xl.parse('TM Learnsets', header=0)
+    if df.empty:
+        return {}
+
+    tm_cols = [c for c in df.columns if str(c).startswith('TM') or str(c).startswith('HM')]
+    if not tm_cols:
+        return {}
+
+    mapping_row = df[df['Name'].isna()].head(1)
+    if mapping_row.empty:
+        return {}
+    mapping_row = mapping_row.iloc[0]
+
+    tm_to_move = {}
+    for tm_col in tm_cols:
+        move_name = _val(mapping_row.get(tm_col))
+        if move_name:
+            tm_to_move[tm_col] = move_name
+
+    tm_learnsets = {}
+    for _, row in df.iterrows():
+        name = _val(row.get('Name'))
+        if not name or name == '-----':
+            continue
+
+        moves = []
+        for tm_col, move_name in tm_to_move.items():
+            value = row.get(tm_col)
+            try:
+                can_learn = bool(value) and not pd.isna(value)
+            except (TypeError, ValueError):
+                can_learn = False
+            if can_learn:
+                moves.append(move_name)
+
+        tm_learnsets[name] = sorted(set(moves))
+
+    return tm_learnsets
+
+
+# ---------------------------------------------------------------------------
+# Phase 1g: Parse Evolutions sheet → evolution ancestry map
+# ---------------------------------------------------------------------------
+
+def parse_pre_evolutions(xl):
+    """
+    Parse the 'Evolutions' sheet and produce an ancestry map:
+      { "CHARIZARD": ["CHARMANDER", "CHARMELEON"], ... }
+    """
+    df = xl.parse('Evolutions', header=0)
+
+    direct_prevos = {}
+    result_cols = [c for c in df.columns if str(c).startswith('Result')]
+
+    for _, row in df.iterrows():
+        src = _val(row.get('Name'))
+        if not src or src == '-----':
+            continue
+
+        for rc in result_cols:
+            evo = _val(row.get(rc))
+            if not evo or evo == '-----':
+                continue
+            direct_prevos.setdefault(evo, set()).add(src)
+
+    all_species = set(df['Name'].dropna().astype(str).tolist())
+    all_species.discard('-----')
+    all_species.update(direct_prevos.keys())
+
+    pre_evolutions = {}
+
+    def gather_ancestors(species, seen=None):
+        if seen is None:
+            seen = set()
+        result = []
+        for pre in sorted(direct_prevos.get(species, set())):
+            if pre in seen:
+                continue
+            seen.add(pre)
+            result.append(pre)
+            result.extend(gather_ancestors(pre, seen))
+        return result
+
+    for species in sorted(all_species):
+        ancestors = gather_ancestors(species)
+        deduped = []
+        seen = set()
+        for mon in ancestors:
+            if mon not in seen:
+                deduped.append(mon)
+                seen.add(mon)
+        pre_evolutions[species] = deduped
+
+    return pre_evolutions
+
+
+# ---------------------------------------------------------------------------
+# Phase 1h: Parse Items sheet → valid item list
+# ---------------------------------------------------------------------------
+
+def parse_items(xl):
+    """Parse the 'Items' sheet and return all valid item names."""
+    df = xl.parse('Items', header=0)
+    items = []
+    for _, row in df.iterrows():
+        name = _val(row.get('Name'))
+        if name and name != '-----':
+            items.append(name)
+    return sorted(set(items))
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -469,7 +593,26 @@ def main():
     learnsets = parse_learnsets(xl)
     print(f'  → {len(learnsets)} Pokémon learnsets')
 
-    kaizo_data = {'pokemon': pokemon, 'moves': moves, 'learnsets': learnsets}
+    print('Parsing TM Learnsets sheet …')
+    tm_learnsets = parse_tm_learnsets(xl)
+    print(f'  → {len(tm_learnsets)} Pokémon TM/HM learnsets')
+
+    print('Parsing Evolutions sheet …')
+    pre_evolutions = parse_pre_evolutions(xl)
+    print(f'  → {len(pre_evolutions)} evolution ancestry entries')
+
+    print('Parsing Items sheet …')
+    items = parse_items(xl)
+    print(f'  → {len(items)} items')
+
+    kaizo_data = {
+        'pokemon': pokemon,
+        'moves': moves,
+        'learnsets': learnsets,
+        'tm_learnsets': tm_learnsets,
+        'pre_evolutions': pre_evolutions,
+        'items': items,
+    }
     out_path = os.path.join(OUT_DIR, 'kaizo_data.json')
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(kaizo_data, f, indent=2, ensure_ascii=False)
