@@ -1,28 +1,11 @@
-/**
- * App.tsx
- *
- * Three-pane Platinum Kaizo VGC Calculator & Router dashboard.
- *
- * Left  Pane – Player: file dropzone → POST to Flask /api/upload-save → show team
- *              Supports both party and PC box Pokémon browsing.
- *              Shows level-up learnset moves at or below current level.
- *              Allows editing the moves used in the damage calculator.
- * Right Pane – Enemy:  trainer dropdown → show lead Pokémon
- * Bottom Pane – Output: damage rolls via @smogon/calc + AI move probabilities
- */
-
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 import { calculate, Pokemon, Move, Field } from '@smogon/calc'
-import { predictEnemyMove, type BattleMon, type AIFlags } from './engine/aiPredictor'
+import { predictEnemyMove, type BattleMon, type AIFlags, type FieldState } from './engine/aiPredictor'
 import trainerDb from '../../data/trainer_db.json'
 import kaizoRaw from '../../data/kaizo_data.json'
 import './App.css'
-
-// ────────────────────────────────────────────────────────────────────────────
-// Types
-// ────────────────────────────────────────────────────────────────────────────
 
 interface PartyMon {
   source: 'party' | 'box'
@@ -70,32 +53,101 @@ interface TrainerEntry {
 
 type TrainerDb = Record<string, TrainerEntry>
 
+type StatusCode = '' | 'slp' | 'psn' | 'brn' | 'frz' | 'par' | 'tox'
+
+type StatKey = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe'
+type StatSpread = Record<StatKey, number>
+
+interface ManualMon {
+  species: string
+  level: number
+  nature: string
+  ability: string
+  item: string
+  evs: StatSpread
+  ivs: StatSpread
+  moves: string[]
+  hp: number
+  maxHp: number
+  status: StatusCode
+}
+
 interface DamageResult {
   label: string
   rolls: string
   range: string
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Learnset helpers
-// ────────────────────────────────────────────────────────────────────────────
+type CalcMon = {
+  species: string
+  level: number
+  nature?: string | null
+  ability?: string | null
+  item?: string | null
+  evs?: Partial<StatSpread>
+  ivs?: Partial<StatSpread>
+  hp?: number
+  max_hp?: number
+}
+
+const NATURES = [
+  'Hardy', 'Lonely', 'Brave', 'Adamant', 'Naughty',
+  'Bold', 'Docile', 'Relaxed', 'Impish', 'Lax',
+  'Timid', 'Hasty', 'Serious', 'Jolly', 'Naive',
+  'Modest', 'Mild', 'Quiet', 'Bashful', 'Rash',
+  'Calm', 'Gentle', 'Sassy', 'Careful', 'Quirky',
+]
+
+const STAT_KEYS: StatKey[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe']
+const WEATHER_OPTIONS = ['', 'sun', 'rain', 'sand', 'hail'] as const
 
 const kaizoData = kaizoRaw as KaizoData
+const db = trainerDb as TrainerDb
+const trainerKeys = Object.keys(db).filter((k) => db[k].pokemon.length > 0)
+const speciesOptions = Object.keys(kaizoData.pokemon).sort()
+const moveOptions = Object.keys(kaizoData.moves).sort()
 
-/**
- * Return all moves a Pokémon can learn at or below `level` via level-up
- * (i.e. moves available via the Move Reminder / Heart Scale).
- */
+const defaultEvs: StatSpread = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
+const defaultIvs: StatSpread = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }
+
 function getLearnableAtLevel(species: string, level: number): LearnsetEntry[] {
-  // Normalise species name to upper-case to match kaizo_data key format
   const key = species.toUpperCase()
   const learnset = kaizoData.learnsets[key] ?? []
   return learnset.filter((e) => e.level <= level)
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Sub-components
-// ────────────────────────────────────────────────────────────────────────────
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+function toSpread(raw: Record<string, number> | undefined, fallback: StatSpread): StatSpread {
+  return {
+    hp: clamp(raw?.hp ?? fallback.hp, 0, 255),
+    atk: clamp(raw?.atk ?? fallback.atk, 0, 255),
+    def: clamp(raw?.def ?? fallback.def, 0, 255),
+    spa: clamp(raw?.spa ?? fallback.spa, 0, 255),
+    spd: clamp(raw?.spd ?? fallback.spd, 0, 255),
+    spe: clamp(raw?.spe ?? fallback.spe, 0, 255),
+  }
+}
+
+function fromImportedMon(mon: PartyMon): ManualMon {
+  const hp = mon.hp ?? mon.max_hp ?? 100
+  const maxHp = mon.max_hp ?? Math.max(hp, 1)
+  return {
+    species: mon.species,
+    level: mon.level,
+    nature: mon.nature || 'Hardy',
+    ability: mon.ability || '',
+    item: mon.item || '',
+    evs: toSpread(mon.evs, defaultEvs),
+    ivs: toSpread(mon.ivs, defaultIvs),
+    moves: [...mon.moves, '', '', '', ''].slice(0, 4),
+    hp,
+    maxHp,
+    status: '',
+  }
+}
 
 function MonCard({ mon }: { mon: PartyMon | TrainerPokemon }) {
   const hpPct =
@@ -132,45 +184,41 @@ function MonCard({ mon }: { mon: PartyMon | TrainerPokemon }) {
   )
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Damage helper
-// ────────────────────────────────────────────────────────────────────────────
-
 function computeDamage(
-  attackerMon: PartyMon | TrainerPokemon,
-  defenderMon: PartyMon | TrainerPokemon,
+  attackerMon: CalcMon,
+  defenderMon: CalcMon,
   moveName: string,
   label: string,
+  fieldState: Pick<FieldState, 'weather'>,
 ): DamageResult | null {
   try {
     const atk = new Pokemon(4, attackerMon.species, {
-      level:   attackerMon.level,
-      nature:  (attackerMon.nature ?? 'Hardy') as never,
+      level: attackerMon.level,
+      nature: (attackerMon.nature ?? 'Hardy') as never,
       ability: (attackerMon.ability ?? '') as never,
-      item:    (attackerMon.item ?? '') as never,
-      evs:     ('evs' in attackerMon ? attackerMon.evs : {}) as never,
-      ivs:     ('ivs' in attackerMon ? attackerMon.ivs : {}) as never,
+      item: (attackerMon.item ?? '') as never,
+      evs: (attackerMon.evs ?? {}) as never,
+      ivs: (attackerMon.ivs ?? {}) as never,
     })
     const def = new Pokemon(4, defenderMon.species, {
-      level:   defenderMon.level,
-      nature:  (defenderMon.nature ?? 'Hardy') as never,
+      level: defenderMon.level,
+      nature: (defenderMon.nature ?? 'Hardy') as never,
       ability: (defenderMon.ability ?? '') as never,
-      item:    (defenderMon.item ?? '') as never,
-      evs:     ('evs' in defenderMon ? defenderMon.evs : {}) as never,
-      ivs:     ('ivs' in defenderMon ? defenderMon.ivs : {}) as never,
+      item: (defenderMon.item ?? '') as never,
+      evs: (defenderMon.evs ?? {}) as never,
+      ivs: (defenderMon.ivs ?? {}) as never,
     })
-    const mv    = new Move(4, moveName)
-    const field = new Field()
-    const res   = calculate(4, atk, def, mv, field)
-    const dmg   = res.damage as number[]
+
+    const mv = new Move(4, moveName)
+    const field = new Field({ weather: fieldState.weather as never })
+    const res = calculate(4, atk, def, mv, field)
+    const dmg = res.damage as number[]
     if (!dmg || dmg.length === 0) return null
+
     const lo = dmg[0]
     const hi = dmg[dmg.length - 1]
-    const maxHp =
-      'max_hp' in defenderMon && (defenderMon as PartyMon).max_hp != null &&
-      (defenderMon as PartyMon).max_hp! > 0
-        ? (defenderMon as PartyMon).max_hp!
-        : def.maxHP()
+    const maxHp = defenderMon.max_hp && defenderMon.max_hp > 0 ? defenderMon.max_hp : def.maxHP()
+
     return {
       label,
       rolls: dmg.slice(0, 4).join(' / ') + (dmg.length > 4 ? ' …' : ''),
@@ -181,39 +229,36 @@ function computeDamage(
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Main App
-// ────────────────────────────────────────────────────────────────────────────
-
-const db = trainerDb as TrainerDb
-const trainerKeys = Object.keys(db).filter((k) => db[k].pokemon.length > 0)
-
 export default function App() {
-  // Player state
-  const [partyMons, setPartyMons]   = useState<PartyMon[]>([])
-  const [boxMons, setBoxMons]       = useState<PartyMon[]>([])
-  const [playerSource, setPlayerSource] = useState<'party' | 'box'>('party')
-  const [playerIdx, setPlayerIdx]   = useState(0)
+  const [partyMons, setPartyMons] = useState<PartyMon[]>([])
+  const [boxMons, setBoxMons] = useState<PartyMon[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [uploading, setUploading]   = useState(false)
+  const [uploading, setUploading] = useState(false)
 
-  // Editable moves for the calculator (player side)
-  const [calcMoves, setCalcMoves]   = useState<string[]>(['', '', '', ''])
+  const [manualMon, setManualMon] = useState<ManualMon>({
+    species: '',
+    level: 50,
+    nature: 'Hardy',
+    ability: '',
+    item: '',
+    evs: defaultEvs,
+    ivs: defaultIvs,
+    moves: ['', '', '', ''],
+    hp: 100,
+    maxHp: 100,
+    status: '',
+  })
 
-  // Enemy state
   const [trainerKey, setTrainerKey] = useState(trainerKeys[0] ?? '')
-  const [enemyIdx, setEnemyIdx]     = useState(0)
+  const [enemyIdx, setEnemyIdx] = useState(0)
+  const [fieldState, setFieldState] = useState<FieldState>({ weather: '', isTrickRoom: false, turnNumber: 1 })
 
-  // Output
-  const [damageResults, setDamageResults] = useState<DamageResult[]>([])
-  const [aiProbs, setAiProbs]             = useState<{ move: string; probability: number }[]>([])
-
-  // ── File drop ──────────────────────────────────────────────────────────
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (!file) return
     setUploading(true)
     setUploadError(null)
+
     try {
       const form = new FormData()
       form.append('save', file)
@@ -222,11 +267,11 @@ export default function App() {
         form,
         { headers: { 'Content-Type': 'multipart/form-data' } },
       )
-      setPartyMons(data.party ?? [])
-      setBoxMons(data.boxes ?? [])
-      setPlayerSource('party')
-      setPlayerIdx(0)
-      setCalcMoves(['', '', '', ''])
+      const nextParty = data.party ?? []
+      const nextBoxes = data.boxes ?? []
+      setPartyMons(nextParty)
+      setBoxMons(nextBoxes)
+      if (nextParty[0]) setManualMon(fromImportedMon(nextParty[0]))
     } catch (err: unknown) {
       const msg =
         axios.isAxiosError(err) && err.response?.data?.error
@@ -244,85 +289,85 @@ export default function App() {
     multiple: false,
   })
 
-  // ── Derived data ───────────────────────────────────────────────────────
-  const visibleMons  = playerSource === 'party' ? partyMons : boxMons
-  const playerMon    = visibleMons[playerIdx] ?? null
-  const trainer      = db[trainerKey]
+  const trainer = db[trainerKey]
   const enemyPokemon = trainer?.pokemon ?? []
-  const enemyMon     = enemyPokemon[enemyIdx] ?? null
+  const enemyMon = enemyPokemon[enemyIdx] ?? null
 
-  // Learnset moves available at or below current level
-  const learnableMoves: LearnsetEntry[] = playerMon
-    ? getLearnableAtLevel(playerMon.species, playerMon.level)
+  const importChoices = partyMons.length > 0
+    ? partyMons.slice(0, 6)
+    : [...partyMons, ...boxMons].slice(0, 6)
+
+  const learnableMoves: LearnsetEntry[] = manualMon.species
+    ? getLearnableAtLevel(manualMon.species, manualMon.level)
     : []
 
-  // When a different player mon is selected, pre-populate calcMoves
-  const selectPlayerMon = (idx: number) => {
-    setPlayerIdx(idx)
-    const mon = visibleMons[idx]
-    if (mon) {
-      const mv = [...mon.moves, '', '', '', ''].slice(0, 4)
-      setCalcMoves(mv)
-    }
-    setDamageResults([])
-    setAiProbs([])
-  }
+  const damageResults = (() => {
+    if (!manualMon.species || !enemyMon) return []
 
-  // ── Compute button ─────────────────────────────────────────────────────
-  function handleCompute() {
-    if (!playerMon || !enemyMon) return
+    const playerForCalc: CalcMon = {
+      species: manualMon.species,
+      level: manualMon.level,
+      nature: manualMon.nature,
+      ability: manualMon.ability,
+      item: manualMon.item,
+      evs: manualMon.evs,
+      ivs: manualMon.ivs,
+      hp: manualMon.hp,
+      max_hp: manualMon.maxHp,
+    }
+
     const results: DamageResult[] = []
 
-    // Use the editable calcMoves for the player side
-    const playerMovesForCalc = calcMoves.filter(Boolean)
-
-    // Player → Enemy damage for each selected player move
-    for (const mv of playerMovesForCalc) {
-      const r = computeDamage(playerMon, enemyMon, mv, `Player: ${mv}`)
+    for (const mv of manualMon.moves.filter(Boolean)) {
+      const r = computeDamage(playerForCalc, enemyMon, mv, `Player: ${mv}`, fieldState)
       if (r) results.push(r)
     }
 
-    // Enemy → Player damage for each enemy move
-    for (const mv of (enemyMon.moves ?? []).filter(Boolean)) {
-      const r = computeDamage(enemyMon, playerMon, mv, `Enemy: ${mv}`)
+    for (const mv of enemyMon.moves.filter(Boolean)) {
+      const r = computeDamage(enemyMon, playerForCalc, mv, `Enemy: ${mv}`, fieldState)
       if (r) results.push(r)
     }
 
-    setDamageResults(results)
+    return results
+  })()
 
-    // AI probability prediction (uses enemy's actual moves)
+  const aiProbs = (() => {
+    if (!manualMon.species || !enemyMon) return []
+
+    const hpPercent = manualMon.maxHp > 0
+      ? clamp((manualMon.hp / manualMon.maxHp) * 100, 0, 100)
+      : 100
+
     const pMon: BattleMon = {
-      species:   playerMon.species,
-      level:     playerMon.level,
-      nature:    playerMon.nature,
-      ability:   playerMon.ability,
-      item:      playerMon.item,
-      hpPercent: (playerMon.max_hp ?? 0) > 0
-        ? (playerMon.hp! / playerMon.max_hp!) * 100
-        : 100,
-      moves:     playerMovesForCalc,
-      evs:       playerMon.evs as BattleMon['evs'],
-      ivs:       playerMon.ivs as BattleMon['ivs'],
+      species: manualMon.species,
+      level: manualMon.level,
+      nature: manualMon.nature,
+      ability: manualMon.ability || undefined,
+      item: manualMon.item || undefined,
+      hpPercent,
+      moves: manualMon.moves.filter(Boolean),
+      evs: manualMon.evs,
+      ivs: manualMon.ivs,
+      status: manualMon.status || undefined,
     }
+
     const eMon: BattleMon = {
-      species:   enemyMon.species,
-      level:     enemyMon.level,
-      nature:    enemyMon.nature ?? undefined,
-      ability:   enemyMon.ability ?? undefined,
-      item:      enemyMon.item ?? undefined,
+      species: enemyMon.species,
+      level: enemyMon.level,
+      nature: enemyMon.nature ?? undefined,
+      ability: enemyMon.ability ?? undefined,
+      item: enemyMon.item ?? undefined,
       hpPercent: 100,
-      moves:     enemyMon.moves,
+      moves: enemyMon.moves,
     }
+
     const flags: AIFlags = Object.fromEntries(
       (trainer?.ai_flags ?? []).map((f) => [f, true]),
     ) as AIFlags
-    const probs = predictEnemyMove(pMon, eMon, {}, flags)
-    setAiProbs(probs)
-  }
 
-  const hasTeam = partyMons.length > 0 || boxMons.length > 0
+    return predictEnemyMove(pMon, eMon, fieldState, flags)
+  })()
 
-  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="app">
       <header className="app-header">
@@ -330,119 +375,247 @@ export default function App() {
       </header>
 
       <div className="pane-row">
-        {/* Left Pane – Player */}
         <section className="pane pane-player">
-          <h2>Player Team</h2>
-          <div
-            {...getRootProps()}
-            className={`dropzone ${isDragActive ? 'dropzone-active' : ''}`}
-          >
-            <input {...getInputProps()} />
-            {uploading
-              ? 'Uploading…'
-              : isDragActive
-              ? 'Drop .sav here…'
-              : 'Drop your .sav file here, or click to select'}
-          </div>
-          {uploadError && <p className="error">{uploadError}</p>}
+          <h2>Player Theorycrafting</h2>
 
-          {hasTeam && (
-            <>
-              {/* Party / Box tabs */}
-              <div className="source-tabs">
-                <button
-                  className={playerSource === 'party' ? 'active' : ''}
-                  onClick={() => { setPlayerSource('party'); setPlayerIdx(0); setDamageResults([]); setAiProbs([]) }}
-                >
-                  Party ({partyMons.length})
-                </button>
-                <button
-                  className={playerSource === 'box' ? 'active' : ''}
-                  onClick={() => { setPlayerSource('box'); setPlayerIdx(0); setDamageResults([]); setAiProbs([]) }}
-                >
-                  Boxes ({boxMons.length})
-                </button>
+          <div className="import-section">
+            <h3>Import from Save (Optional)</h3>
+            <div
+              {...getRootProps()}
+              className={`dropzone ${isDragActive ? 'dropzone-active' : ''}`}
+            >
+              <input {...getInputProps()} />
+              {uploading
+                ? 'Uploading…'
+                : isDragActive
+                  ? 'Drop .sav here…'
+                  : 'Click or drop a .sav/.dsv to autofill from save data'}
+            </div>
+            {uploadError && <p className="error">{uploadError}</p>}
+
+            {importChoices.length > 0 && (
+              <div className="imported-team">
+                <p className="hint-inline">Imported team (click to autofill form)</p>
+                <div className="slot-selector">
+                  {importChoices.map((m, i) => (
+                    <button
+                      key={`${m.source}-${m.slot}-${i}`}
+                      onClick={() => setManualMon(fromImportedMon(m))}
+                      title={m.box !== undefined ? `Box ${m.box + 1}` : 'Party'}
+                    >
+                      {m.species}
+                    </button>
+                  ))}
+                </div>
               </div>
+            )}
+          </div>
 
-              {/* Pokémon selector */}
-              <div className="slot-selector">
-                {visibleMons.map((m, i) => (
-                  <button
-                    key={i}
-                    onClick={() => selectPlayerMon(i)}
-                    className={i === playerIdx ? 'active' : ''}
-                    title={m.box !== undefined ? `Box ${m.box + 1}` : 'Party'}
-                  >
-                    {m.species}
-                    {m.box !== undefined && (
-                      <span className="box-label"> B{m.box + 1}</span>
-                    )}
-                  </button>
+          <div className="manual-form">
+            <h3>Manual Pokémon Input</h3>
+
+            <div className="manual-grid">
+              <label>
+                Species
+                <input
+                  value={manualMon.species}
+                  onChange={(e) => setManualMon((prev) => ({ ...prev, species: e.target.value }))}
+                  list="species-list"
+                  placeholder="e.g. Garchomp"
+                />
+              </label>
+
+              <label>
+                Level
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={manualMon.level}
+                  onChange={(e) => {
+                    const value = Number(e.target.value)
+                    setManualMon((prev) => ({ ...prev, level: clamp(Number.isFinite(value) ? value : 1, 1, 100) }))
+                  }}
+                />
+              </label>
+
+              <label>
+                Nature
+                <select
+                  value={manualMon.nature}
+                  onChange={(e) => setManualMon((prev) => ({ ...prev, nature: e.target.value }))}
+                >
+                  {NATURES.map((nature) => (
+                    <option key={nature} value={nature}>
+                      {nature}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Ability
+                <input
+                  value={manualMon.ability}
+                  onChange={(e) => setManualMon((prev) => ({ ...prev, ability: e.target.value }))}
+                  placeholder="Ability"
+                />
+              </label>
+
+              <label>
+                Item
+                <input
+                  value={manualMon.item}
+                  onChange={(e) => setManualMon((prev) => ({ ...prev, item: e.target.value }))}
+                  placeholder="Held item"
+                />
+              </label>
+
+              <label>
+                Current HP
+                <input
+                  type="number"
+                  min={0}
+                  value={manualMon.hp}
+                  onChange={(e) => {
+                    const value = Number(e.target.value)
+                    setManualMon((prev) => ({ ...prev, hp: Math.max(0, Number.isFinite(value) ? value : 0) }))
+                  }}
+                />
+              </label>
+
+              <label>
+                Max HP
+                <input
+                  type="number"
+                  min={1}
+                  value={manualMon.maxHp}
+                  onChange={(e) => {
+                    const value = Number(e.target.value)
+                    setManualMon((prev) => ({ ...prev, maxHp: Math.max(1, Number.isFinite(value) ? value : 1) }))
+                  }}
+                />
+              </label>
+
+              <label>
+                Status
+                <select
+                  value={manualMon.status}
+                  onChange={(e) => setManualMon((prev) => ({ ...prev, status: e.target.value as StatusCode }))}
+                >
+                  <option value="">Healthy</option>
+                  <option value="brn">Burn</option>
+                  <option value="frz">Freeze</option>
+                  <option value="par">Paralysis</option>
+                  <option value="psn">Poison</option>
+                  <option value="tox">Bad Poison</option>
+                  <option value="slp">Sleep</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="stat-block">
+              <h3>EVs</h3>
+              <div className="stat-grid">
+                {STAT_KEYS.map((stat) => (
+                  <label key={`ev-${stat}`}>
+                    {stat.toUpperCase()}
+                    <input
+                      type="number"
+                      min={0}
+                      max={255}
+                      value={manualMon.evs[stat]}
+                      onChange={(e) => {
+                        const value = Number(e.target.value)
+                        setManualMon((prev) => ({
+                          ...prev,
+                          evs: {
+                            ...prev.evs,
+                            [stat]: clamp(Number.isFinite(value) ? value : 0, 0, 255),
+                          },
+                        }))
+                      }}
+                    />
+                  </label>
                 ))}
               </div>
+            </div>
 
-              {playerMon && (
-                <>
-                  <MonCard mon={playerMon} />
+            <div className="stat-block">
+              <h3>IVs</h3>
+              <div className="stat-grid">
+                {STAT_KEYS.map((stat) => (
+                  <label key={`iv-${stat}`}>
+                    {stat.toUpperCase()}
+                    <input
+                      type="number"
+                      min={0}
+                      max={31}
+                      value={manualMon.ivs[stat]}
+                      onChange={(e) => {
+                        const value = Number(e.target.value)
+                        setManualMon((prev) => ({
+                          ...prev,
+                          ivs: {
+                            ...prev.ivs,
+                            [stat]: clamp(Number.isFinite(value) ? value : 0, 0, 31),
+                          },
+                        }))
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
 
-                  {/* Learnset section */}
-                  {learnableMoves.length > 0 && (
-                    <div className="learnset-section">
-                      <h3>♥ Learnable Moves (Heart Scale)</h3>
-                      <div className="learnset-list">
-                        {learnableMoves.map((e, i) => (
-                          <span
-                            key={i}
-                            className="learnset-tag"
-                            title={`Learned at Lv ${e.level}`}
-                            onClick={() => {
-                              // Clicking a learnset move fills the first empty calcMove slot
-                              setCalcMoves((prev) => {
-                                const next = [...prev]
-                                const emptyIdx = next.findIndex((m) => !m)
-                                if (emptyIdx !== -1) next[emptyIdx] = e.move
-                                else next[3] = e.move
-                                return next
-                              })
-                            }}
-                          >
-                            Lv{e.level} {e.move}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+            <div className="calc-moves-section">
+              <h3>Moves</h3>
+              <div className="calc-moves-grid">
+                {manualMon.moves.map((mv, i) => (
+                  <input
+                    key={i}
+                    className="calc-move-input"
+                    value={mv}
+                    list="move-list"
+                    placeholder={`Move ${i + 1}`}
+                    onChange={(e) => {
+                      const next = [...manualMon.moves]
+                      next[i] = e.target.value
+                      setManualMon((prev) => ({ ...prev, moves: next }))
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
 
-                  {/* Editable moves for the calculator */}
-                  <div className="calc-moves-section">
-                    <h3>🔧 Moves for Calculator</h3>
-                    <div className="calc-moves-grid">
-                      {calcMoves.map((mv, i) => (
-                        <input
-                          key={i}
-                          className="calc-move-input"
-                          value={mv}
-                          placeholder={`Move ${i + 1}`}
-                          onChange={(e) => {
-                            const next = [...calcMoves]
-                            next[i] = e.target.value
-                            setCalcMoves(next)
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          {!hasTeam && !uploadError && (
-            <p className="hint">Upload a .sav to see your team.</p>
-          )}
+            {learnableMoves.length > 0 && (
+              <div className="learnset-section">
+                <h3>♥ Learnable Moves (Heart Scale)</h3>
+                <div className="learnset-list">
+                  {learnableMoves.map((entry, i) => (
+                    <span
+                      key={i}
+                      className="learnset-tag"
+                      title={`Learned at Lv ${entry.level}`}
+                      onClick={() => {
+                        setManualMon((prev) => {
+                          const next = [...prev.moves]
+                          const emptyIdx = next.findIndex((m) => !m)
+                          if (emptyIdx !== -1) next[emptyIdx] = entry.move
+                          else next[3] = entry.move
+                          return { ...prev, moves: next }
+                        })
+                      }}
+                    >
+                      Lv{entry.level} {entry.move}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </section>
 
-        {/* Right Pane – Enemy */}
         <section className="pane pane-enemy">
           <h2>Enemy Trainer</h2>
           <select
@@ -450,8 +623,6 @@ export default function App() {
             onChange={(e) => {
               setTrainerKey(e.target.value)
               setEnemyIdx(0)
-              setDamageResults([])
-              setAiProbs([])
             }}
             className="trainer-select"
           >
@@ -462,6 +633,45 @@ export default function App() {
             ))}
           </select>
 
+          <div className="field-controls">
+            <h3>Field State</h3>
+            <div className="manual-grid">
+              <label>
+                Weather
+                <select
+                  value={fieldState.weather ?? ''}
+                  onChange={(e) => setFieldState((prev) => ({ ...prev, weather: e.target.value }))}
+                >
+                  {WEATHER_OPTIONS.map((weather) => (
+                    <option key={weather || 'none'} value={weather}>
+                      {weather || 'none'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Turn
+                <input
+                  type="number"
+                  min={1}
+                  value={fieldState.turnNumber ?? 1}
+                  onChange={(e) => {
+                    const value = Number(e.target.value)
+                    setFieldState((prev) => ({ ...prev, turnNumber: Math.max(1, Number.isFinite(value) ? value : 1) }))
+                  }}
+                />
+              </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={fieldState.isTrickRoom ?? false}
+                  onChange={(e) => setFieldState((prev) => ({ ...prev, isTrickRoom: e.target.checked }))}
+                />
+                Trick Room
+              </label>
+            </div>
+          </div>
+
           {trainer && (
             <>
               <div className="ai-flags">
@@ -471,6 +681,7 @@ export default function App() {
                   </span>
                 ))}
               </div>
+
               <div className="slot-selector">
                 {enemyPokemon.map((m, i) => (
                   <button
@@ -482,31 +693,23 @@ export default function App() {
                   </button>
                 ))}
               </div>
+
               {enemyMon && <MonCard mon={enemyMon} />}
             </>
           )}
         </section>
       </div>
 
-      {/* Compute button */}
-      <div className="compute-row">
-        <button
-          className="compute-btn"
-          onClick={handleCompute}
-          disabled={!playerMon || !enemyMon || calcMoves.every((m) => !m)}
-        >
-          Calculate Damage &amp; AI Probabilities
-        </button>
-      </div>
+      <section className="pane pane-output">
+        <h2>Output</h2>
 
-      {/* Bottom Pane – Output */}
-      {(damageResults.length > 0 || aiProbs.length > 0) && (
-        <section className="pane pane-output">
-          <h2>Output</h2>
+        {!manualMon.species || !enemyMon ? (
+          <p className="hint">Pick a player species and enemy Pokémon to see instant results.</p>
+        ) : (
           <div className="output-columns">
-            {damageResults.length > 0 && (
-              <div className="output-section">
-                <h3>Damage Rolls</h3>
+            <div className="output-section">
+              <h3>Damage Rolls</h3>
+              {damageResults.length > 0 ? (
                 <table className="damage-table">
                   <thead>
                     <tr>
@@ -525,33 +728,46 @@ export default function App() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
+              ) : (
+                <p className="hint">Enter valid move names to see damage rolls.</p>
+              )}
+            </div>
 
-            {aiProbs.length > 0 && (
-              <div className="output-section">
-                <h3>AI Move Prediction</h3>
+            <div className="output-section">
+              <h3>AI Move Prediction</h3>
+              {aiProbs.length > 0 ? (
                 <div className="ai-probs">
-                  {aiProbs
+                  {[...aiProbs]
                     .sort((a, b) => b.probability - a.probability)
                     .map((p, i) => (
                       <div key={i} className="prob-row">
                         <span className="prob-move">{p.move}</span>
                         <div className="prob-bar-wrap">
-                          <div
-                            className="prob-bar"
-                            style={{ width: `${p.probability}%` }}
-                          />
+                          <div className="prob-bar" style={{ width: `${p.probability}%` }} />
                         </div>
                         <span className="prob-pct">{p.probability}%</span>
                       </div>
                     ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="hint">No AI move probabilities available for current inputs.</p>
+              )}
+            </div>
           </div>
-        </section>
-      )}
+        )}
+      </section>
+
+      <datalist id="species-list">
+        {speciesOptions.map((species) => (
+          <option key={species} value={species} />
+        ))}
+      </datalist>
+
+      <datalist id="move-list">
+        {moveOptions.map((move) => (
+          <option key={move} value={move} />
+        ))}
+      </datalist>
     </div>
   )
 }
