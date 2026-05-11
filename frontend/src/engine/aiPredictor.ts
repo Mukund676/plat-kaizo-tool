@@ -261,6 +261,18 @@ const ABILITY_IMMUNITIES: Record<string, string[]> = {
   'Levitate':      ['Ground'],
 };
 
+/** Type-based immunities in Gen 4: attacking type -> defending types immune to it */
+const TYPE_IMMUNITIES: Record<string, string[]> = {
+  Normal: ['Ghost'],
+  Fighting: ['Ghost'],
+  Poison: ['Steel'],
+  Ground: ['Flying'],
+  Ghost: ['Normal'],
+  Electric: ['Ground'],
+  Psychic: ['Dark'],
+  Dragon: ['Steel'],
+};
+
 /** Sound-based moves (Soundproof ability blocks) */
 const SOUND_MOVES = new Set([
   'Hyper Voice', 'Uproar', 'Snore', 'Roar', 'Perish Song',
@@ -394,6 +406,13 @@ function hasAbilityImmunity(
   return false;
 }
 
+function hasTypeImmunity(moveType: string | undefined, defenderTypes: string[] | undefined): boolean {
+  if (!moveType || !defenderTypes || defenderTypes.length === 0) return false;
+  const immuneDefenderTypes = TYPE_IMMUNITIES[moveType];
+  if (!immuneDefenderTypes) return false;
+  return defenderTypes.some((t) => immuneDefenderTypes.includes(t));
+}
+
 /** Moves that are only sensible with immediate turn-history context. */
 const CONTEXT_DEPENDENT_MOVES = new Set(['Counter', 'Mirror Coat', 'Metal Burst']);
 
@@ -431,6 +450,11 @@ function applyBasicFlag(
   for (const mv of moves) {
     const md = getMoveEntry(mv);
     const moveType: string | undefined = md?.type as string | undefined;
+
+    if (hasTypeImmunity(moveType, playerMon.types)) {
+      scores[mv] -= 10;
+      continue;
+    }
 
     // ── 1. Type immunity ─────────────────────────────────────────────────
     if (md && md.category !== 'Status') {
@@ -1033,6 +1057,11 @@ export function predictEnemyMove(
 
     const md = getMoveEntry(mv);
     if (!md || md.category === 'Status') continue;
+    const moveType: string | undefined = md.type as string | undefined;
+    if (hasTypeImmunity(moveType, playerMon.types)) {
+      scores[mv] = 0;
+      continue;
+    }
     try {
       const atk = makePokemon(enemyMon);
       const def = makePokemon(playerMon);
