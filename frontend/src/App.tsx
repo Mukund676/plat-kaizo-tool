@@ -193,6 +193,18 @@ function computeApproxSpeed(mon: ManualMon, speciesData: KaizoPokemon | null): n
   return Math.floor(neutral * getNatureSpeedModifier(mon.nature))
 }
 
+function computeMaxHp(
+  level: number,
+  ivHp: number,
+  evHp: number,
+  fallbackMaxHp: number,
+  speciesData: KaizoPokemon | null,
+): number {
+  if (!speciesData) return Math.max(1, fallbackMaxHp)
+  const base = speciesData.hp
+  return Math.max(1, Math.floor((((2 * base) + ivHp + Math.floor(evHp / 4)) * level) / 100) + level + 10)
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -403,6 +415,12 @@ export default function App() {
     ? `HP ${manualSpecies.hp} / Atk ${manualSpecies.attack} / Def ${manualSpecies.defense} / SpA ${manualSpecies.sp_atk} / SpD ${manualSpecies.sp_def} / Spe ${manualSpecies.speed}`
     : 'Select a species to view base stats'
 
+  const computedMaxHp = useMemo(
+    () => computeMaxHp(manualMon.level, manualMon.ivs.hp, manualMon.evs.hp, manualMon.maxHp, manualSpecies),
+    [manualMon.level, manualMon.ivs.hp, manualMon.evs.hp, manualSpecies, manualMon.maxHp],
+  )
+  const effectiveCurrentHp = clamp(manualMon.hp, 0, computedMaxHp)
+
   const damageResults = (() => {
     if (!manualMon.species || !enemyMon) return []
 
@@ -414,8 +432,8 @@ export default function App() {
       item: manualMon.item,
       evs: manualMon.evs,
       ivs: manualMon.ivs,
-      hp: manualMon.hp,
-      max_hp: manualMon.maxHp,
+      hp: effectiveCurrentHp,
+      max_hp: computedMaxHp,
     }
 
     const results: DamageResult[] = []
@@ -436,8 +454,8 @@ export default function App() {
   const aiProbs = (() => {
     if (!manualMon.species || !enemyMon) return []
 
-    const hpPercent = manualMon.maxHp > 0
-      ? clamp((manualMon.hp / manualMon.maxHp) * 100, 0, 100)
+    const hpPercent = computedMaxHp > 0
+      ? clamp((effectiveCurrentHp / computedMaxHp) * 100, 0, 100)
       : 100
 
     const pMon: BattleMon = {
@@ -594,24 +612,25 @@ export default function App() {
                 <input
                   type="number"
                   min={0}
-                  value={manualMon.hp}
+                  max={computedMaxHp}
+                  value={effectiveCurrentHp}
                   onChange={(e) => {
                     const value = Number(e.target.value)
-                    setManualMon((prev) => ({ ...prev, hp: Math.max(0, Number.isFinite(value) ? value : 0) }))
+                    setManualMon((prev) => ({
+                      ...prev,
+                      hp: clamp(Number.isFinite(value) ? value : 0, 0, computedMaxHp),
+                    }))
                   }}
                 />
               </label>
 
               <label>
-                Max HP
+                Max HP (calculated)
                 <input
                   type="number"
                   min={1}
-                  value={manualMon.maxHp}
-                  onChange={(e) => {
-                    const value = Number(e.target.value)
-                    setManualMon((prev) => ({ ...prev, maxHp: Math.max(1, Number.isFinite(value) ? value : 1) }))
-                  }}
+                  value={computedMaxHp}
+                  readOnly
                 />
               </label>
 
