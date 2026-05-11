@@ -1080,34 +1080,15 @@ export function predictEnemyMove(
   // Clamp to 0 minimum
   for (const mv of moves) scores[mv] = Math.max(0, scores[mv]);
 
-  // If all scores are tied, use deterministic expected damage as a tiebreaker.
-  const uniqueScores = new Set(moves.map((mv) => scores[mv]));
-  if (uniqueScores.size === 1) {
-    const damages: Record<string, number> = {};
-    let maxDamage = 0;
-    for (const mv of moves) {
-      const dmg = getDamage(enemyMon, playerMon, mv, field);
-      damages[mv] = dmg;
-      if (dmg > maxDamage) maxDamage = dmg;
-    }
-    if (maxDamage > 0) {
-      for (const mv of moves) {
-        scores[mv] += (damages[mv] / maxDamage) * 10;
-      }
-    }
-  }
-
-  // Convert to probabilities: proportional to score, equal share for ties
-  const totalScore = moves.reduce((s, mv) => s + scores[mv], 0);
+  // Convert to probabilities per Gen 4 trainer AI:
+  // choose only from the highest-scoring move(s), splitting evenly on ties.
   const maxScore = Math.max(...moves.map((mv) => scores[mv]));
   const topMoves = moves.filter((mv) => scores[mv] === maxScore);
+  const topProbability = topMoves.length > 0 ? 100 / topMoves.length : 0;
 
   return moves.map((mv) => ({
     move:  mv,
     score: scores[mv],
-    probability:
-      totalScore > 0
-        ? parseFloat(((scores[mv] / totalScore) * 100).toFixed(1))
-        : parseFloat(((topMoves.includes(mv) ? 1 / topMoves.length : 0) * 100).toFixed(1)),
+    probability: parseFloat((topMoves.includes(mv) ? topProbability : 0).toFixed(1)),
   }));
 }
