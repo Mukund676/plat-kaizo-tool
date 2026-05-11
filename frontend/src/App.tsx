@@ -378,10 +378,9 @@ export default function App() {
     () => kaizoData.pokemon[normalizeSpeciesKey(manualMon.species)] ?? null,
     [manualMon.species],
   )
-  const enemySpecies = useMemo(
-    () => (enemyMon ? kaizoData.pokemon[normalizeSpeciesKey(enemyMon.species)] ?? null : null),
-    [enemyMon],
-  )
+  const enemySpecies = enemyMon
+    ? kaizoData.pokemon[normalizeSpeciesKey(enemyMon.species)] ?? null
+    : null
 
   const learnableMoves: LearnsetEntry[] = useMemo(
     () => (manualMon.species ? getLearnableMoves(manualMon.species, manualMon.level) : []),
@@ -404,7 +403,7 @@ export default function App() {
     ? `HP ${manualSpecies.hp} / Atk ${manualSpecies.attack} / Def ${manualSpecies.defense} / SpA ${manualSpecies.sp_atk} / SpD ${manualSpecies.sp_def} / Spe ${manualSpecies.speed}`
     : 'Select a species to view base stats'
 
-  const damageResults = useMemo(() => {
+  const damageResults = (() => {
     if (!manualMon.species || !enemyMon) return []
 
     const playerForCalc: CalcMon = {
@@ -432,9 +431,9 @@ export default function App() {
     }
 
     return results
-  }, [manualMon, enemyMon, fieldState])
+  })()
 
-  const aiProbs = useMemo(() => {
+  const aiProbs = (() => {
     if (!manualMon.species || !enemyMon) return []
 
     const hpPercent = manualMon.maxHp > 0
@@ -473,7 +472,7 @@ export default function App() {
     ) as AIFlags
 
     return predictEnemyMove(pMon, eMon, fieldState, flags)
-  }, [manualMon, manualSpecies, enemyMon, enemySpecies, fieldState, trainer?.ai_flags])
+  })()
 
   return (
     <div className="app">
