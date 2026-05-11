@@ -270,7 +270,6 @@ const TYPE_IMMUNITIES: Record<string, string[]> = {
   Ghost: ['Normal'],
   Electric: ['Ground'],
   Psychic: ['Dark'],
-  Dragon: ['Steel'],
 };
 
 /** Sound-based moves (Soundproof ability blocks) */
@@ -408,9 +407,12 @@ function hasAbilityImmunity(
 
 function hasTypeImmunity(moveType: string | undefined, defenderTypes: string[] | undefined): boolean {
   if (!moveType || !defenderTypes || defenderTypes.length === 0) return false;
-  const immuneDefenderTypes = TYPE_IMMUNITIES[moveType];
+  const normalizedMoveType = moveType.charAt(0).toUpperCase() + moveType.slice(1).toLowerCase();
+  const immuneDefenderTypes = TYPE_IMMUNITIES[normalizedMoveType];
   if (!immuneDefenderTypes) return false;
-  return defenderTypes.some((t) => immuneDefenderTypes.includes(t));
+  return defenderTypes
+    .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
+    .some((t) => immuneDefenderTypes.includes(t));
 }
 
 /** Moves that are only sensible with immediate turn-history context. */
