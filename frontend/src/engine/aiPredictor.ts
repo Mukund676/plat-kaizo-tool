@@ -282,7 +282,10 @@ const DESIRABLE_ABILITIES = new Set([
 // Internal helpers
 // ────────────────────────────────────────────────────────────────────────────
 
-/** p() helper: returns val with given probability, else 0 */
+/**
+ * p() helper: deterministic expected-value contribution for UI-stable scoring.
+ * (probability-weighted delta, instead of per-render RNG sampling)
+ */
 function p(prob: number, val: number): number {
   return prob * val;
 }

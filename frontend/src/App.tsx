@@ -860,7 +860,7 @@ export default function App() {
               <h3>AI Move Prediction</h3>
               {aiProbs.length > 0 ? (
                 <div className="ai-probs">
-                  {[...aiProbs]
+                  {aiProbs
                     .sort((a, b) => b.probability - a.probability)
                     .map((p, i) => (
                       <div key={i} className="prob-row">
