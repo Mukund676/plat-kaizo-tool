@@ -397,6 +397,16 @@ function hasAbilityImmunity(
 /** Moves that are only sensible with immediate turn-history context. */
 const CONTEXT_DEPENDENT_MOVES = new Set(['Counter', 'Mirror Coat', 'Metal Burst']);
 
+function isNoDamageResult(damage: unknown): boolean {
+  if (typeof damage === 'number') return damage <= 0;
+  if (Array.isArray(damage)) {
+    if (damage.length === 0) return true;
+    const nums = damage.filter((v): v is number => typeof v === 'number');
+    return nums.length === 0 || Math.max(...nums) <= 0;
+  }
+  return false;
+}
+
 /** Is the enemy faster than the player? Returns true if enemy speed > player speed. */
 function enemyIsFaster(enemy: BattleMon, player: BattleMon): boolean {
   const eSpe = enemy.speed ?? 0;
@@ -430,8 +440,7 @@ function applyBasicFlag(
         const smgMove = new Move(4, mv);
         const result = calculate(4, atk, def, smgMove, field);
         // damage array is empty or all-zero for type immune
-        const rolls = result.damage as number[];
-        if (Array.isArray(rolls) && rolls.length > 0 && rolls[rolls.length - 1] === 0) {
+        if (isNoDamageResult(result.damage)) {
           scores[mv] -= 10;
           continue; // immune — skip other checks for this move
         }
@@ -1029,8 +1038,7 @@ export function predictEnemyMove(
       const def = makePokemon(playerMon);
       const smgMove = new Move(4, mv);
       const result = calculate(4, atk, def, smgMove, field);
-      const rolls = result.damage as number[];
-      if (Array.isArray(rolls) && rolls.length > 0 && rolls[rolls.length - 1] === 0) {
+      if (isNoDamageResult(result.damage)) {
         scores[mv] = 0;
       }
     } catch {
