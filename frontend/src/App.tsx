@@ -326,7 +326,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>⚔️ Platinum Kaizo VGC Calculator</h1>
+        <h1>⚔️ Platinum Kaizo Damage Calculator</h1>
       </header>
 
       <div className="pane-row">
