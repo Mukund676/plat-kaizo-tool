@@ -691,7 +691,7 @@ export default function App() {
       return
     }
     setEnemyMon(createDefaultMon())
-  }, [trainerByKey, setTrainerKey, setAiFlagOverrides, setEnemySlot, setEnemyMon])
+  }, [trainerByKey])
 
   const [fieldState, setFieldState] = useState<FieldUiState>({
     weather: '',
