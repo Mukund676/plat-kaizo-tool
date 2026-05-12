@@ -60,6 +60,11 @@ export interface FieldState {
   /** Turn number (1 = first turn of the battle) */
   turnNumber?: number;
   isDoubleBattle?: boolean;
+  hasFog?: boolean;
+  hasPartner?: boolean;
+  partnerHpPercent?: number;
+  partnerAbility?: string;
+  partnerStatus?: string;
 }
 
 export interface AIFlags {
@@ -82,6 +87,7 @@ export interface MoveProbability {
   move: string;
   score: number;
   probability: number;
+  breakdown: string[];
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -261,6 +267,33 @@ const ABILITY_IMMUNITIES: Record<string, string[]> = {
   'Levitate':      ['Ground'],
 };
 
+/** Type-based immunities in Gen 4: attacking type -> defending types immune to it */
+const TYPE_IMMUNITIES: Record<string, string[]> = {
+  Normal: ['Ghost'],
+  Fighting: ['Ghost'],
+  Poison: ['Steel'],
+  Ground: ['Flying'],
+  Ghost: ['Normal'],
+  Electric: ['Ground'],
+  Psychic: ['Dark'],
+};
+
+/** Partial Gen 4 type chart for move-specific Expert-flag checks. */
+const TYPE_EFFECTIVENESS: Record<string, Record<string, number>> = {
+  Bug: {
+    Grass: 2, Psychic: 2, Dark: 2,
+    Fire: 0.5, Fighting: 0.5, Poison: 0.5, Flying: 0.5, Ghost: 0.5, Steel: 0.5,
+  },
+  Dark: {
+    Ghost: 2, Psychic: 2,
+    Fighting: 0.5, Dark: 0.5, Steel: 0.5,
+  },
+  Fighting: {
+    Normal: 2, Rock: 2, Steel: 2, Ice: 2, Dark: 2,
+    Flying: 0.5, Poison: 0.5, Bug: 0.5, Psychic: 0.5, Ghost: 0,
+  },
+};
+
 /** Sound-based moves (Soundproof ability blocks) */
 const SOUND_MOVES = new Set([
   'Hyper Voice', 'Uproar', 'Snore', 'Roar', 'Perish Song',
@@ -282,14 +315,17 @@ const DESIRABLE_ABILITIES = new Set([
 // Internal helpers
 // ────────────────────────────────────────────────────────────────────────────
 
-/** p() helper: returns val with given probability, else 0 */
+/**
+ * p() helper: deterministic expected-value contribution for UI-stable scoring.
+ * (probability-weighted delta, instead of per-render RNG sampling)
+ */
 function p(prob: number, val: number): number {
-  return Math.random() < prob ? val : 0;
+  return prob * val;
 }
 
 /** Build a @smogon/calc Pokemon from a BattleMon */
 function makePokemon(mon: BattleMon): Pokemon {
-  return new Pokemon(4, mon.species, {
+  const options = {
     level:  mon.level,
     nature: mon.nature as never,
     ability: mon.ability as never,
@@ -298,8 +334,8 @@ function makePokemon(mon: BattleMon): Pokemon {
     ivs:    mon.ivs ?? {},
     boosts: mon.boosts ?? {},
     status: mon.status,
-    curHP:  Math.round(mon.hpPercent / 100),
-  });
+  };
+  return new Pokemon(4, mon.species, options);
 }
 
 /** Get smogon move data (category, type, etc.) */
@@ -391,6 +427,64 @@ function hasAbilityImmunity(
   return false;
 }
 
+function hasTypeImmunity(moveType: string | undefined, defenderTypes: string[] | undefined): boolean {
+  if (!moveType || !defenderTypes || defenderTypes.length === 0) return false;
+  const normalizedMoveType = moveType.charAt(0).toUpperCase() + moveType.slice(1).toLowerCase();
+  const immuneDefenderTypes = TYPE_IMMUNITIES[normalizedMoveType];
+  if (!immuneDefenderTypes) return false;
+  return defenderTypes
+    .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
+    .some((t) => immuneDefenderTypes.includes(t));
+}
+
+function isNoDamageResult(damage: unknown): boolean {
+  if (typeof damage === 'number') return damage <= 0;
+  if (Array.isArray(damage)) {
+    if (damage.length === 0) return true;
+    const nums = damage.filter((v): v is number => typeof v === 'number');
+    return nums.length === 0 || Math.max(...nums) <= 0;
+  }
+  return false;
+}
+
+function getTypeEffectivenessMultiplier(moveType: string | undefined, defenderTypes: string[] | undefined): number {
+  if (!moveType || !defenderTypes || defenderTypes.length === 0) return 1;
+  const typeChart = TYPE_EFFECTIVENESS[
+    moveType.charAt(0).toUpperCase() + moveType.slice(1).toLowerCase()
+  ];
+  if (!typeChart) return 1;
+  let mult = 1;
+  for (const t of defenderTypes) {
+    const key = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+    mult *= typeChart[key] ?? 1;
+  }
+  return mult;
+}
+
+function isResistedOrImmuneMove(
+  moveName: string,
+  attacker: BattleMon,
+  defender: BattleMon,
+): boolean {
+  const md = getMoveEntry(moveName);
+  if (!md || md.category === 'Status') return false;
+  const moveType = md.type as string | undefined;
+  if (hasAbilityImmunity(moveName, moveType, defender.ability, attacker.ability)) return true;
+  if (hasTypeImmunity(moveType, defender.types)) return true;
+  return getTypeEffectivenessMultiplier(moveType, defender.types) < 1;
+}
+
+function hasSuperEffectiveDamagingMove(attackerMoves: string[], defender: BattleMon): boolean {
+  for (const moveName of attackerMoves) {
+    const md = getMoveEntry(moveName);
+    if (!md || md.category === 'Status') continue;
+    const moveType = md.type as string | undefined;
+    if (hasTypeImmunity(moveType, defender.types)) continue;
+    if (getTypeEffectivenessMultiplier(moveType, defender.types) > 1) return true;
+  }
+  return false;
+}
+
 /** Is the enemy faster than the player? Returns true if enemy speed > player speed. */
 function enemyIsFaster(enemy: BattleMon, player: BattleMon): boolean {
   const eSpe = enemy.speed ?? 0;
@@ -424,8 +518,7 @@ function applyBasicFlag(
         const smgMove = new Move(4, mv);
         const result = calculate(4, atk, def, smgMove, field);
         // damage array is empty or all-zero for type immune
-        const rolls = result.damage as number[];
-        if (Array.isArray(rolls) && rolls.length > 0 && rolls[rolls.length - 1] === 0) {
+        if (isNoDamageResult(result.damage)) {
           scores[mv] -= 10;
           continue; // immune — skip other checks for this move
         }
@@ -598,6 +691,7 @@ function applyExpertFlag(
   moves: string[],
   enemyMon: BattleMon,
   playerMon: BattleMon,
+  fieldState: FieldState,
 ): void {
   const eFaster = enemyIsFaster(enemyMon, playerMon);
 
@@ -699,6 +793,58 @@ function applyExpertFlag(
     if (mv === 'Role Play' || mv === 'Skill Swap') {
       if (DESIRABLE_ABILITIES.has(enemyMon.ability ?? '')) scores[mv] -= 1;
       if (DESIRABLE_ABILITIES.has(playerMon.ability ?? '')) scores[mv] += p(0.805, 2);
+    }
+
+    // Pluck / Bug Bite
+    if (mv === 'Pluck' || mv === 'Bug Bite') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
+      if ((fieldState.turnNumber ?? 1) === 1) scores[mv] += p(0.75, 1);
+      scores[mv] += p(0.5, 1);
+    }
+
+    // U-turn
+    if (mv === 'U-turn' || mv === 'U Turn') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) {
+        scores[mv] -= 1;
+      } else {
+        if (enemyMon.isLastPokemon) {
+          scores[mv] += 2;
+        } else {
+          if (hasSuperEffectiveDamagingMove(moves, playerMon)) scores[mv] += p(0.75, -2);
+          if (playerMon.hpPercent > 70) scores[mv] += p(0.75, 1);
+          else if (playerMon.hpPercent > 30) scores[mv] += p(0.5, 1);
+          else scores[mv] += p(0.25, 1);
+          if (eFaster) scores[mv] += 1;
+          else scores[mv] += p(0.5, 1);
+        }
+      }
+    }
+
+    // Close Combat
+    if (mv === 'Close Combat') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
+      if (!eFaster && enemyMon.hpPercent <= 80) scores[mv] -= 1;
+      if (eFaster && enemyMon.hpPercent <= 60) scores[mv] -= 1;
+    }
+
+    // Payback
+    if (mv === 'Payback') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
+      if (!eFaster && enemyMon.hpPercent >= 30) scores[mv] += p(0.75, 1);
+    }
+
+    // Assurance
+    if (mv === 'Assurance') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
+      if (!eFaster) {
+        if (enemyMon.ability === 'Rough Skin') {
+          scores[mv] += p(0.5, 1);
+        } else if (enemyMon.item === 'Jaboca Berry' || enemyMon.item === 'Rowap Berry') {
+          scores[mv] += p(0.5, 1);
+        } else {
+          scores[mv] += p(0.25, 1);
+        }
+      }
     }
   }
 }
@@ -966,6 +1112,20 @@ function applyStatusFlag(
   }
 }
 
+function applyFogModifier(
+  scores: Record<string, number>,
+  moves: string[],
+): void {
+  for (const mv of moves) {
+    const md = getMoveEntry(mv);
+    if (!md || md.category === 'Status') continue;
+    const accuracy = (md as unknown as { accuracy?: number }).accuracy;
+    if (typeof accuracy === 'number' && accuracy < 100) {
+      scores[mv] -= 1;
+    }
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Main export
 // ────────────────────────────────────────────────────────────────────────────
@@ -987,42 +1147,123 @@ export function predictEnemyMove(
   const moves = enemyMon.moves.filter(Boolean);
   if (moves.length === 0) return [];
 
+  const activeFlags = Object.entries(aiFlags)
+    .filter(([, isEnabled]) => Boolean(isEnabled))
+    .map(([key]) => key);
+  if (activeFlags.length === 0) {
+    console.warn('[AI Predictor] No active AI flags supplied.', {
+      aiFlags,
+      fieldState,
+      playerMon: {
+        species: playerMon.species,
+        hpPercent: playerMon.hpPercent,
+        moves: playerMon.moves,
+      },
+      enemyMon: {
+        species: enemyMon.species,
+        hpPercent: enemyMon.hpPercent,
+        moves: enemyMon.moves,
+      },
+    });
+  }
+  if (!Number.isFinite(playerMon.hpPercent) || !Number.isFinite(enemyMon.hpPercent)) {
+    console.warn('[AI Predictor] Invalid hpPercent values received.', {
+      playerHpPercent: playerMon.hpPercent,
+      enemyHpPercent: enemyMon.hpPercent,
+    });
+  }
+
   // Initialise all scores to 100
   const scores: Record<string, number> = {};
   for (const mv of moves) scores[mv] = 100;
+  const breakdownByMove: Record<string, string[]> = Object.fromEntries(
+    moves.map((mv) => [mv, ['Base Score: 100']]),
+  );
 
   const field = new Field({
     weather: fieldState.weather as never,
   });
 
+  const applyFlagWithBreakdown = (enabled: boolean | undefined, label: string, applyFn: () => void): void => {
+    if (!enabled) return;
+    const before = Object.fromEntries(moves.map((mv) => [mv, scores[mv]]));
+    applyFn();
+    for (const mv of moves) {
+      const delta = scores[mv] - (before[mv] ?? scores[mv]);
+      if (Math.abs(delta) > 0.0001) {
+        breakdownByMove[mv].push(`${label}: ${delta > 0 ? '+' : ''}${parseFloat(delta.toFixed(1))}`);
+      }
+    }
+  };
+
   // Apply each flag in the order the document describes them
-  if (aiFlags.basic)            applyBasicFlag(scores, moves, enemyMon, playerMon, field, fieldState.isTrickRoom ?? false);
-  if (aiFlags.eval_att)         applyEvalAttFlag(scores, moves, enemyMon, playerMon, field);
-  if (aiFlags.expert)           applyExpertFlag(scores, moves, enemyMon, playerMon);
-  if (aiFlags.setup_first_turn) applySetupFirstTurnFlag(scores, moves, fieldState);
-  if (aiFlags.risky)            applyRiskyFlag(scores, moves);
-  if (aiFlags.damage_prio)      applyPrioritizeExtremesFlag(scores, moves);
-  if (aiFlags.baton_pass)       applyBatonPassFlag(scores, moves, enemyMon, fieldState);
-  if (aiFlags.tag_strategy)     applyTagStrategyFlag(scores, moves, enemyMon, playerMon, field);
-  if (aiFlags.check_hp)         applyCheckHPFlag(scores, moves, enemyMon, playerMon);
-  if (aiFlags.weather)          applyWeatherFlag(scores, moves, enemyMon, fieldState);
-  if (aiFlags.harassment)       applyHarassmentFlag(scores, moves);
-  if (aiFlags.status)           applyStatusFlag(scores, moves, playerMon);
+  applyFlagWithBreakdown(aiFlags.basic, 'Basic Flag', () => applyBasicFlag(scores, moves, enemyMon, playerMon, field, fieldState.isTrickRoom ?? false));
+  applyFlagWithBreakdown(aiFlags.eval_att, 'Evaluate Attack Flag', () => applyEvalAttFlag(scores, moves, enemyMon, playerMon, field));
+  applyFlagWithBreakdown(aiFlags.expert, 'Expert Flag', () => applyExpertFlag(scores, moves, enemyMon, playerMon, fieldState));
+  applyFlagWithBreakdown(aiFlags.setup_first_turn, 'Setup First Turn Flag', () => applySetupFirstTurnFlag(scores, moves, fieldState));
+  applyFlagWithBreakdown(aiFlags.risky, 'Risky Flag', () => applyRiskyFlag(scores, moves));
+  applyFlagWithBreakdown(aiFlags.damage_prio, 'Prioritize Damage Flag', () => applyPrioritizeExtremesFlag(scores, moves));
+  applyFlagWithBreakdown(aiFlags.baton_pass, 'Baton Pass Flag', () => applyBatonPassFlag(scores, moves, enemyMon, fieldState));
+  applyFlagWithBreakdown(aiFlags.tag_strategy, 'Tag Strategy Flag', () => applyTagStrategyFlag(scores, moves, enemyMon, playerMon, field));
+  applyFlagWithBreakdown(aiFlags.check_hp, 'Check HP Flag', () => applyCheckHPFlag(scores, moves, enemyMon, playerMon));
+  applyFlagWithBreakdown(aiFlags.weather, 'Weather Flag', () => applyWeatherFlag(scores, moves, enemyMon, fieldState));
+  applyFlagWithBreakdown(aiFlags.harassment, 'Harassment Flag', () => applyHarassmentFlag(scores, moves));
+  applyFlagWithBreakdown(aiFlags.status, 'Prioritize Status Flag', () => applyStatusFlag(scores, moves, playerMon));
+  applyFlagWithBreakdown(fieldState.hasFog, 'Fog Modifier', () => applyFogModifier(scores, moves));
+
+  // Hard invalidation for moves that cannot damage the current target.
+  for (const mv of moves) {
+    const md = getMoveEntry(mv);
+    if (!md || md.category === 'Status') continue;
+    const moveType: string | undefined = md.type as string | undefined;
+    if (hasTypeImmunity(moveType, playerMon.types)) {
+      scores[mv] = 0;
+      breakdownByMove[mv].push('Immunity Invalidation: set to 0');
+      continue;
+    }
+    try {
+      const atk = makePokemon(enemyMon);
+      const def = makePokemon(playerMon);
+      const smgMove = new Move(4, mv);
+      const result = calculate(4, atk, def, smgMove, field);
+      if (isNoDamageResult(result.damage)) {
+        scores[mv] = 0;
+        breakdownByMove[mv].push('No-Damage Invalidation: set to 0');
+      }
+    } catch {
+      // ignore calc failures
+    }
+  }
 
   // Clamp to 0 minimum
-  for (const mv of moves) scores[mv] = Math.max(0, scores[mv]);
+  for (const mv of moves) {
+    const beforeClamp = scores[mv];
+    scores[mv] = Math.max(0, scores[mv]);
+    if (scores[mv] !== beforeClamp) {
+      breakdownByMove[mv].push(`Clamp: ${parseFloat(beforeClamp.toFixed(1))} → ${scores[mv]}`);
+    }
+  }
 
-  // Convert to probabilities: proportional to score, equal share for ties
-  const totalScore = moves.reduce((s, mv) => s + scores[mv], 0);
+  // Probability model: weighted softmax over final scores to avoid flat ties.
+  const temperature = 0.75;
   const maxScore = Math.max(...moves.map((mv) => scores[mv]));
-  const topMoves = moves.filter((mv) => scores[mv] === maxScore);
+  const rawWeights = moves.map((mv) => (scores[mv] <= 0 ? 0 : Math.exp((scores[mv] - maxScore) / temperature)));
+  const weightSum = rawWeights.reduce((a, b) => a + b, 0);
+  const probabilities = weightSum > 0
+    ? rawWeights.map((w) => (w / weightSum) * 100)
+    : moves.map(() => 100 / moves.length);
 
-  return moves.map((mv) => ({
-    move:  mv,
-    score: scores[mv],
-    probability:
-      totalScore > 0
-        ? parseFloat(((scores[mv] / totalScore) * 100).toFixed(1))
-        : parseFloat(((topMoves.includes(mv) ? 1 / topMoves.length : 0) * 100).toFixed(1)),
-  }));
+  return moves.map((mv, idx) => {
+    const probability = parseFloat(probabilities[idx].toFixed(1));
+    return {
+      move:  mv,
+      score: parseFloat(scores[mv].toFixed(1)),
+      probability,
+      breakdown: [
+        ...breakdownByMove[mv],
+        `Final Score: ${parseFloat(scores[mv].toFixed(1))}`,
+        `Final Probability: ${probability}%`,
+      ],
+    };
+  });
 }
