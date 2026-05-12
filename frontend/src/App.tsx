@@ -674,6 +674,14 @@ export default function App() {
   const [enemyMon, setEnemyMon] = useState<EditableMon>(initialEnemy)
 
   const selectTrainer = useCallback((key: string) => {
+    if (!key) {
+      setTrainerKey('')
+      setAiFlagOverrides({})
+      setEnemySlot(0)
+      setEnemyMon(createDefaultMon())
+      return
+    }
+
     const nextTrainer = trainerByKey.get(key)?.trainer
     setTrainerKey(key)
     setAiFlagOverrides({})
@@ -683,7 +691,7 @@ export default function App() {
       return
     }
     setEnemyMon(createDefaultMon())
-  }, [trainerByKey])
+  }, [trainerByKey, setTrainerKey, setAiFlagOverrides, setEnemySlot, setEnemyMon])
 
   const [fieldState, setFieldState] = useState<FieldUiState>({
     weather: '',
@@ -1115,7 +1123,9 @@ export default function App() {
                 selectTrainer(e.target.value)
               }}
             >
-              {filteredTrainers.map((opt) => <option key={opt.key} value={opt.key}>{opt.trainer.name}</option>)}
+              {filteredTrainers.length === 0
+                ? <option value="">No trainers in this split</option>
+                : filteredTrainers.map((opt) => <option key={opt.key} value={opt.key}>{opt.trainer.name}</option>)}
             </select>
           </label>
 
