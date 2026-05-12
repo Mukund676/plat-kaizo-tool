@@ -50,6 +50,8 @@ interface TrainerEntry {
 type TrainerDbBySplit = Record<string, TrainerEntry[]>
 type TrainerOption = { key: string; split: string; trainer: TrainerEntry }
 
+const TRAINER_SPLITS = ['Roark', 'Gardenia', 'Fantina', 'Maylene', 'Wake', 'Byron', 'Candice', 'Volkner', 'Galactic', 'Elite Four'] as const
+
 interface KaizoPokemon {
   id: number
   hp: number
@@ -642,13 +644,6 @@ function MoveRows({
 export default function App() {
   const trainerOptions = useMemo(() => normalizeTrainerDb(trainerDb), [])
   const trainerByKey = useMemo(() => new Map(trainerOptions.map((t) => [t.key, t])), [trainerOptions])
-  const groupedTrainers = useMemo(() => {
-    return trainerOptions.reduce<Record<string, TrainerOption[]>>((acc, t) => {
-      if (!acc[t.split]) acc[t.split] = []
-      acc[t.split].push(t)
-      return acc
-    }, {})
-  }, [trainerOptions])
 
   const [partyMons, setPartyMons] = useState<PartyMon[]>([])
   const [boxMons, setBoxMons] = useState<PartyMon[]>([])
@@ -656,17 +651,34 @@ export default function App() {
   const [uploading, setUploading] = useState(false)
 
   const [playerMon, setPlayerMon] = useState<EditableMon>(createDefaultMon())
-  const [trainerKey, setTrainerKey] = useState(trainerOptions[0]?.key ?? '')
+  const [activeSplit, setActiveSplit] = useState('Roark')
+  const [trainerKey, setTrainerKey] = useState(() => trainerOptions.find((trainer) => trainer.split === 'Roark')?.key ?? trainerOptions[0]?.key ?? '')
   const [enemySlot, setEnemySlot] = useState(0)
   const [aiFlagOverrides, setAiFlagOverrides] = useState<Record<string, boolean>>({})
   const [mainDamageSelection, setMainDamageSelection] = useState<{ side: DamageSourceSide; idx: number }>({
     side: 'player',
     idx: 0,
   })
+  const filteredTrainers = useMemo(
+    () => trainerOptions.filter((trainer) => trainer.split === activeSplit),
+    [trainerOptions, activeSplit],
+  )
 
   const initialTrainer = trainerByKey.get(trainerKey)?.trainer
   const initialEnemy = initialTrainer?.pokemon[0] ? fromTrainerPokemon(initialTrainer.pokemon[0]) : createDefaultMon()
   const [enemyMon, setEnemyMon] = useState<EditableMon>(initialEnemy)
+
+  const selectTrainer = useCallback((key: string) => {
+    const nextTrainer = trainerByKey.get(key)?.trainer
+    setTrainerKey(key)
+    setAiFlagOverrides({})
+    setEnemySlot(0)
+    if (nextTrainer?.pokemon?.[0]) {
+      setEnemyMon(fromTrainerPokemon(nextTrainer.pokemon[0]))
+      return
+    }
+    setEnemyMon(createDefaultMon())
+  }, [trainerByKey])
 
   const [fieldState, setFieldState] = useState<FieldUiState>({
     weather: '',
@@ -1074,25 +1086,31 @@ export default function App() {
             <h2>Enemy Boss</h2>
           </div>
 
+          <div className="split-button-row">
+            {TRAINER_SPLITS.map((split) => (
+              <button
+                key={split}
+                type="button"
+                className={activeSplit === split ? 'split-toggle active' : 'split-toggle'}
+                onClick={() => {
+                  setActiveSplit(split)
+                  const firstSplitTrainerKey = trainerOptions.find((trainer) => trainer.split === split)?.key ?? ''
+                  selectTrainer(firstSplitTrainerKey)
+                }}
+              >
+                {split}
+              </button>
+            ))}
+          </div>
+
           <label className="boss-picker">Boss Trainer
             <select
               value={trainerKey}
               onChange={(e) => {
-                const key = e.target.value
-                const nextTrainer = trainerByKey.get(key)?.trainer
-                setTrainerKey(key)
-                setAiFlagOverrides({})
-                setEnemySlot(0)
-                if (nextTrainer?.pokemon?.[0]) {
-                  setEnemyMon(fromTrainerPokemon(nextTrainer.pokemon[0]))
-                }
+                selectTrainer(e.target.value)
               }}
             >
-              {Object.entries(groupedTrainers).map(([split, options]) => (
-                <optgroup key={split} label={split}>
-                  {options.map((opt) => <option key={opt.key} value={opt.key}>{opt.trainer.name}</option>)}
-                </optgroup>
-              ))}
+              {filteredTrainers.map((opt) => <option key={opt.key} value={opt.key}>{opt.trainer.name}</option>)}
             </select>
           </label>
 
