@@ -102,6 +102,8 @@ interface CalcResult {
   range: string
 }
 
+type DamageSourceSide = 'player' | 'enemy'
+
 interface FieldUiState {
   weather: '' | 'sun' | 'rain' | 'sand' | 'hail'
   terrain: '' | 'electric' | 'grassy' | 'misty' | 'psychic'
@@ -167,6 +169,38 @@ const NATURE_BY_PAIR: Record<string, string> = Object.fromEntries(
 const kaizoData = kaizoRaw as KaizoData
 const speciesOptions = Object.keys(kaizoData.pokemon).sort()
 const moveOptions = Object.keys(kaizoData.moves).sort()
+
+const AI_FLAG_KEY_MAP: Record<string, keyof AIFlags> = {
+  basic: 'basic',
+  eval_att: 'eval_att',
+  expert: 'expert',
+  setup_first_turn: 'setup_first_turn',
+  risky: 'risky',
+  damage_prio: 'damage_prio',
+  baton_pass: 'baton_pass',
+  tag_strategy: 'tag_strategy',
+  check_hp: 'check_hp',
+  weather: 'weather',
+  harassment: 'harassment',
+  status: 'status',
+  double_battle: 'double_battle',
+  'Prioritize Effectiveness': 'basic',
+  'Evaluate Attacks': 'eval_att',
+  Expert: 'expert',
+  'Setup First Turn': 'setup_first_turn',
+  'Risky Attacks': 'risky',
+  'Prioritize Damage': 'damage_prio',
+  'Baton Pass': 'baton_pass',
+  Partner: 'tag_strategy',
+  'Tag Strategy': 'tag_strategy',
+  'Prioritize Healing': 'check_hp',
+  'Check HP': 'check_hp',
+  'Utilize Weather': 'weather',
+  Harassment: 'harassment',
+  'Prioritize Status': 'status',
+  Status: 'status',
+  'Double Battle': 'double_battle',
+}
 
 function normalizeSpeciesKey(species: string): string {
   return species.trim().toUpperCase()
@@ -311,6 +345,15 @@ function moveMeta(moveName: string): KaizoMove | null {
   return kaizoData.moves[moveName] ?? null
 }
 
+function toAIFlags(rawFlags: string[]): AIFlags {
+  const mapped: AIFlags = {}
+  for (const raw of rawFlags) {
+    const key = AI_FLAG_KEY_MAP[raw]
+    if (key) mapped[key] = true
+  }
+  return mapped
+}
+
 function sanitizeBp(overrideBp: number, moveName: string): number {
   if (overrideBp > 0) return overrideBp
   return moveMeta(moveName)?.power ?? 0
@@ -369,7 +412,7 @@ function calculateClassicDamage(
     const maxHp = Math.max(1, defender.maxHp)
     return {
       description: result.desc(),
-      range: `${lo}-${hi} (${((lo / maxHp) * 100).toFixed(1)} - ${((hi / maxHp) * 100).toFixed(1)}%)`,
+      range: `${lo} - ${hi} (${((lo / maxHp) * 100).toFixed(1)} - ${((hi / maxHp) * 100).toFixed(1)}%)`,
     }
   } catch {
     return null
@@ -489,18 +532,47 @@ function StatMatrix({
 }
 
 function MoveRows({
+  attacker,
+  defender,
+  fieldState,
   mon,
   onChange,
+  selectedForMainDamage,
+  selectedMoveIndex,
+  onSelectMoveIndex,
+  radioName,
 }: {
+  attacker: EditableMon
+  defender: EditableMon
+  fieldState: FieldUiState
   mon: EditableMon
   onChange: (next: EditableMon) => void
+  selectedForMainDamage: boolean
+  selectedMoveIndex: number
+  onSelectMoveIndex: (idx: number) => void
+  radioName: string
 }) {
   return (
     <div className="moveset-block">
       {mon.moves.map((moveName, idx) => {
         const meta = moveMeta(moveName)
+        const rowDamage = calculateClassicDamage(
+          attacker,
+          defender,
+          moveName,
+          attacker.moveBpOverrides[idx] ?? 0,
+          fieldState,
+        )
         return (
           <div key={idx} className="move-row">
+            <input
+              className="move-radio"
+              type="radio"
+              name={radioName}
+              checked={selectedForMainDamage && selectedMoveIndex === idx}
+              onChange={() => onSelectMoveIndex(idx)}
+            />
+
             <select
               value={moveName}
               onChange={(e) => {
@@ -530,8 +602,9 @@ function MoveRows({
               }}
             />
 
-            <input value={meta?.type ?? '—'} readOnly />
+            <span className="move-meta move-type">{meta?.type ?? '—'}</span>
             <span className="move-category">{meta?.category ?? '—'}</span>
+            <span className="move-inline-damage">{rowDamage?.range ?? '—'}</span>
           </div>
         )
       })}
@@ -558,6 +631,10 @@ export default function App() {
   const [playerMon, setPlayerMon] = useState<EditableMon>(createDefaultMon())
   const [trainerKey, setTrainerKey] = useState(trainerOptions[0]?.key ?? '')
   const [enemySlot, setEnemySlot] = useState(0)
+  const [mainDamageSelection, setMainDamageSelection] = useState<{ side: DamageSourceSide; idx: number }>({
+    side: 'player',
+    idx: 0,
+  })
 
   const initialTrainer = trainerByKey.get(trainerKey)?.trainer
   const initialEnemy = initialTrainer?.pokemon[0] ? fromTrainerPokemon(initialTrainer.pokemon[0]) : createDefaultMon()
@@ -652,16 +729,19 @@ export default function App() {
   const importChoices = partyMons.length > 0 ? partyMons.slice(0, 6) : [...partyMons, ...boxMons].slice(0, 6)
 
   const primaryDamage = useMemo(() => {
-    const firstPlayerMoveIdx = normalizedPlayer.moves.findIndex(Boolean)
-    if (firstPlayerMoveIdx === -1) return null
+    const attacker = mainDamageSelection.side === 'player' ? normalizedPlayer : normalizedEnemy
+    const defender = mainDamageSelection.side === 'player' ? normalizedEnemy : normalizedPlayer
+    const selectedMoveName = attacker.moves[mainDamageSelection.idx]
+    const moveIdx = selectedMoveName ? mainDamageSelection.idx : attacker.moves.findIndex(Boolean)
+    if (moveIdx === -1) return null
     return calculateClassicDamage(
-      normalizedPlayer,
-      normalizedEnemy,
-      normalizedPlayer.moves[firstPlayerMoveIdx],
-      normalizedPlayer.moveBpOverrides[firstPlayerMoveIdx] ?? 0,
+      attacker,
+      defender,
+      attacker.moves[moveIdx],
+      attacker.moveBpOverrides[moveIdx] ?? 0,
       fieldState,
     )
-  }, [normalizedPlayer, normalizedEnemy, fieldState])
+  }, [mainDamageSelection, normalizedPlayer, normalizedEnemy, fieldState])
 
   const aiProbs = useMemo(() => {
     if (!normalizedEnemy.species || !normalizedPlayer.species) return []
@@ -699,12 +779,25 @@ export default function App() {
       isLastPokemon: enemySlot === enemyRoster.length - 1,
     }
 
-    const flags = Object.fromEntries((trainer?.ai_flags ?? []).map((f) => [f, true])) as AIFlags
+    const trainerFlags = trainer?.ai_flags ?? []
+    if (trainer && trainerFlags.length === 0) {
+      console.warn('[AI Predictor] Trainer has no AI flags', { trainer: trainer.name })
+    }
+    const flags = toAIFlags(trainerFlags)
+    if (trainerFlags.length > 0 && Object.keys(flags).length === 0) {
+      console.warn('[AI Predictor] No recognized AI flags after mapping', { trainerFlags })
+    }
     const aiFieldState: FieldState = {
       weather: fieldState.weather,
       isTrickRoom: fieldState.trickRoom,
       turnNumber: fieldState.turnNumber,
       isDoubleBattle: fieldState.battleMode === 'doubles',
+    }
+    if (!Number.isFinite(playerBattleMon.hpPercent) || !Number.isFinite(enemyBattleMon.hpPercent)) {
+      console.warn('[AI Predictor] Invalid HP inputs', {
+        playerHpPercent: playerBattleMon.hpPercent,
+        enemyHpPercent: enemyBattleMon.hpPercent,
+      })
     }
 
     return predictEnemyMove(playerBattleMon, enemyBattleMon, aiFieldState, flags)
@@ -851,7 +944,17 @@ export default function App() {
 
           <StatMatrix mon={normalizedPlayer} speciesData={playerSpeciesData} onChange={setPlayerMon} />
 
-          <MoveRows mon={normalizedPlayer} onChange={setPlayerMon} />
+          <MoveRows
+            attacker={normalizedPlayer}
+            defender={normalizedEnemy}
+            fieldState={fieldState}
+            mon={normalizedPlayer}
+            onChange={setPlayerMon}
+            selectedForMainDamage={mainDamageSelection.side === 'player'}
+            selectedMoveIndex={mainDamageSelection.idx}
+            onSelectMoveIndex={(idx) => setMainDamageSelection({ side: 'player', idx })}
+            radioName="main-damage-player"
+          />
         </section>
 
         <section className="field-card">
@@ -1020,7 +1123,17 @@ export default function App() {
 
           <StatMatrix mon={normalizedEnemy} speciesData={enemySpeciesData} onChange={setEnemyMon} />
 
-          <MoveRows mon={normalizedEnemy} onChange={setEnemyMon} />
+          <MoveRows
+            attacker={normalizedEnemy}
+            defender={normalizedPlayer}
+            fieldState={fieldState}
+            mon={normalizedEnemy}
+            onChange={setEnemyMon}
+            selectedForMainDamage={mainDamageSelection.side === 'enemy'}
+            selectedMoveIndex={mainDamageSelection.idx}
+            onSelectMoveIndex={(idx) => setMainDamageSelection({ side: 'enemy', idx })}
+            radioName="main-damage-enemy"
+          />
         </section>
       </main>
 

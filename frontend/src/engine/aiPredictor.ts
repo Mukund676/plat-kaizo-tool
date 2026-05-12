@@ -1127,6 +1127,32 @@ export function predictEnemyMove(
   const moves = enemyMon.moves.filter(Boolean);
   if (moves.length === 0) return [];
 
+  const activeFlags = Object.entries(aiFlags)
+    .filter(([, isEnabled]) => Boolean(isEnabled))
+    .map(([key]) => key);
+  if (activeFlags.length === 0) {
+    console.warn('[AI Predictor] No active AI flags supplied.', {
+      aiFlags,
+      fieldState,
+      playerMon: {
+        species: playerMon.species,
+        hpPercent: playerMon.hpPercent,
+        moves: playerMon.moves,
+      },
+      enemyMon: {
+        species: enemyMon.species,
+        hpPercent: enemyMon.hpPercent,
+        moves: enemyMon.moves,
+      },
+    });
+  }
+  if (!Number.isFinite(playerMon.hpPercent) || !Number.isFinite(enemyMon.hpPercent)) {
+    console.warn('[AI Predictor] Invalid hpPercent values received.', {
+      playerHpPercent: playerMon.hpPercent,
+      enemyHpPercent: enemyMon.hpPercent,
+    });
+  }
+
   // Initialise all scores to 100
   const scores: Record<string, number> = {};
   for (const mv of moves) scores[mv] = 100;

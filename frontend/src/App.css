@@ -160,13 +160,22 @@ button {
   font: inherit;
 }
 
-input,
+input[type='text'],
+input[type='number'],
 select {
   width: 100%;
-  border: 1px solid var(--line-dark);
+  border: 1px solid #475569;
   padding: 2px 4px;
-  background: #fff;
-  color: var(--text);
+  background: #334155;
+  color: #f8fafc;
+}
+
+input[readonly] {
+  background: #1f2937;
+}
+
+input::placeholder {
+  color: #cbd5e1;
 }
 
 .field-card {
@@ -203,13 +212,22 @@ select {
 }
 
 .flag-pill {
-  border: 1px solid #8ab0df;
-  background: var(--pill-bg);
-  color: var(--pill-fg);
-  padding: 1px 6px;
+  color: #fff;
+  padding: 2px 8px;
   border-radius: 999px;
-  text-transform: capitalize;
+  text-transform: none;
   font-size: 11px;
+  font-weight: 700;
+  border: 0;
+}
+
+.ai-flag-row .flag-pill:nth-child(4n + 1) { background: #2563eb; }
+.ai-flag-row .flag-pill:nth-child(4n + 2) { background: #7c3aed; }
+.ai-flag-row .flag-pill:nth-child(4n + 3) { background: #ea580c; }
+.ai-flag-row .flag-pill:nth-child(4n + 4) { background: #059669; }
+
+.ai-flag-row .flag-pill:only-child {
+  background: #2563eb;
 }
 
 .enemy-slot-buttons {
@@ -244,6 +262,8 @@ select {
 
 .stat-total {
   font-weight: 700;
+  color: #f8fafc;
+  background: #1f2937;
 }
 
 .stage-na {
@@ -258,16 +278,27 @@ select {
 
 .move-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 62px 82px 74px;
+  grid-template-columns: 18px minmax(0, 1fr) 62px 82px 82px minmax(140px, 1fr);
   gap: 4px;
   align-items: center;
 }
 
+.move-meta,
 .move-category {
   border: 1px solid var(--line);
   padding: 2px 4px;
   text-align: center;
-  background: #f8f8f8;
+  background: #1f2937;
+  color: #e2e8f0;
+}
+
+.move-inline-damage {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.move-radio {
+  width: auto !important;
 }
 
 .output-hub {
