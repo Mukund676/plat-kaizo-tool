@@ -113,6 +113,10 @@ interface FieldUiState {
   reflect: boolean
   lightScreen: boolean
   trickRoom: boolean
+  fog: boolean
+  partnerPresent: boolean
+  partnerHpPercent: number
+  partnerStatus: '' | 'healthy' | 'statused'
   turnNumber: number
   battleMode: 'singles' | 'doubles'
 }
@@ -201,6 +205,21 @@ const AI_FLAG_KEY_MAP: Record<string, keyof AIFlags> = {
   Status: 'status',
   'Double Battle': 'double_battle',
 }
+
+const AI_DEBUG_FLAG_LABELS = [
+  'Prioritize Effectiveness',
+  'Evaluate Attacks',
+  'Expert',
+  'Setup First Turn',
+  'Risky Attacks',
+  'Prioritize Damage',
+  'Baton Pass',
+  'Partner',
+  'Prioritize Healing',
+  'Utilize Weather',
+  'Harassment',
+  'Prioritize Status',
+] as const
 
 function normalizeSpeciesKey(species: string): string {
   return species.trim().toUpperCase()
@@ -352,6 +371,14 @@ function toAIFlags(rawFlags: string[]): AIFlags {
     if (key) mapped[key] = true
   }
   return mapped
+}
+
+function toEffectiveTrainerFlags(rawFlags: string[], overrides: Record<string, boolean>): string[] {
+  const merged = new Set([...rawFlags, ...AI_DEBUG_FLAG_LABELS])
+  return [...merged].filter((flag) => {
+    if (Object.prototype.hasOwnProperty.call(overrides, flag)) return overrides[flag]
+    return rawFlags.includes(flag)
+  })
 }
 
 function sanitizeBp(overrideBp: number, moveName: string): number {
@@ -631,6 +658,7 @@ export default function App() {
   const [playerMon, setPlayerMon] = useState<EditableMon>(createDefaultMon())
   const [trainerKey, setTrainerKey] = useState(trainerOptions[0]?.key ?? '')
   const [enemySlot, setEnemySlot] = useState(0)
+  const [aiFlagOverrides, setAiFlagOverrides] = useState<Record<string, boolean>>({})
   const [mainDamageSelection, setMainDamageSelection] = useState<{ side: DamageSourceSide; idx: number }>({
     side: 'player',
     idx: 0,
@@ -649,6 +677,10 @@ export default function App() {
     reflect: false,
     lightScreen: false,
     trickRoom: false,
+    fog: false,
+    partnerPresent: false,
+    partnerHpPercent: 100,
+    partnerStatus: '',
     turnNumber: 1,
     battleMode: 'singles',
   })
@@ -780,18 +812,23 @@ export default function App() {
     }
 
     const trainerFlags = trainer?.ai_flags ?? []
-    if (trainer && trainerFlags.length === 0) {
+    const effectiveTrainerFlags = toEffectiveTrainerFlags(trainerFlags, aiFlagOverrides)
+    if (trainer && effectiveTrainerFlags.length === 0) {
       console.warn('[AI Predictor] Trainer has no AI flags', { trainer: trainer.name })
     }
-    const flags = toAIFlags(trainerFlags)
-    if (trainerFlags.length > 0 && Object.keys(flags).length === 0) {
-      console.warn('[AI Predictor] No recognized AI flags after mapping', { trainerFlags })
+    const flags = toAIFlags(effectiveTrainerFlags)
+    if (effectiveTrainerFlags.length > 0 && Object.keys(flags).length === 0) {
+      console.warn('[AI Predictor] No recognized AI flags after mapping', { effectiveTrainerFlags })
     }
     const aiFieldState: FieldState = {
       weather: fieldState.weather,
       isTrickRoom: fieldState.trickRoom,
       turnNumber: fieldState.turnNumber,
       isDoubleBattle: fieldState.battleMode === 'doubles',
+      hasFog: fieldState.fog,
+      hasPartner: fieldState.partnerPresent,
+      partnerHpPercent: fieldState.partnerHpPercent,
+      partnerStatus: fieldState.partnerStatus,
     }
     if (!Number.isFinite(playerBattleMon.hpPercent) || !Number.isFinite(enemyBattleMon.hpPercent)) {
       console.warn('[AI Predictor] Invalid HP inputs', {
@@ -811,10 +848,15 @@ export default function App() {
     trainer,
     fieldState.weather,
     fieldState.trickRoom,
+    fieldState.fog,
+    fieldState.partnerPresent,
+    fieldState.partnerHpPercent,
+    fieldState.partnerStatus,
     fieldState.turnNumber,
     fieldState.battleMode,
     enemySlot,
     enemyRoster.length,
+    aiFlagOverrides,
   ])
 
   return (
@@ -1003,6 +1045,27 @@ export default function App() {
           <label className="check-row"><input type="checkbox" checked={fieldState.reflect} onChange={(e) => setFieldState((prev) => ({ ...prev, reflect: e.target.checked }))} />Reflect</label>
           <label className="check-row"><input type="checkbox" checked={fieldState.lightScreen} onChange={(e) => setFieldState((prev) => ({ ...prev, lightScreen: e.target.checked }))} />Light Screen</label>
           <label className="check-row"><input type="checkbox" checked={fieldState.trickRoom} onChange={(e) => setFieldState((prev) => ({ ...prev, trickRoom: e.target.checked }))} />Trick Room</label>
+          <label className="check-row"><input type="checkbox" checked={fieldState.fog} onChange={(e) => setFieldState((prev) => ({ ...prev, fog: e.target.checked }))} />Fog</label>
+          <label className="check-row"><input type="checkbox" checked={fieldState.partnerPresent} onChange={(e) => setFieldState((prev) => ({ ...prev, partnerPresent: e.target.checked }))} />Partner Present</label>
+          <label>Partner HP %
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={fieldState.partnerHpPercent}
+              onChange={(e) => setFieldState((prev) => ({ ...prev, partnerHpPercent: clamp(Number(e.target.value) || 0, 0, 100) }))}
+            />
+          </label>
+          <label>Partner Status
+            <select
+              value={fieldState.partnerStatus}
+              onChange={(e) => setFieldState((prev) => ({ ...prev, partnerStatus: e.target.value as FieldUiState['partnerStatus'] }))}
+            >
+              <option value="">Unknown</option>
+              <option value="healthy">Healthy</option>
+              <option value="statused">Statused</option>
+            </select>
+          </label>
         </section>
 
         <section className="calc-card">
@@ -1018,6 +1081,7 @@ export default function App() {
                 const key = e.target.value
                 const nextTrainer = trainerByKey.get(key)?.trainer
                 setTrainerKey(key)
+                setAiFlagOverrides({})
                 setEnemySlot(0)
                 if (nextTrainer?.pokemon?.[0]) {
                   setEnemyMon(fromTrainerPokemon(nextTrainer.pokemon[0]))
@@ -1036,6 +1100,25 @@ export default function App() {
             {(trainer?.ai_flags ?? []).map((flag) => (
               <span key={flag} className="flag-pill">{flag}</span>
             ))}
+          </div>
+
+          <div className="ai-flag-debug">
+            {AI_DEBUG_FLAG_LABELS.map((flag) => {
+              const trainerHas = (trainer?.ai_flags ?? []).includes(flag)
+              const checked = Object.prototype.hasOwnProperty.call(aiFlagOverrides, flag)
+                ? aiFlagOverrides[flag]
+                : trainerHas
+              return (
+                <label key={flag} className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => setAiFlagOverrides((prev) => ({ ...prev, [flag]: e.target.checked }))}
+                  />
+                  {flag}
+                </label>
+              )
+            })}
           </div>
 
           <div className="enemy-slot-buttons">
@@ -1123,6 +1206,15 @@ export default function App() {
 
           <StatMatrix mon={normalizedEnemy} speciesData={enemySpeciesData} onChange={setEnemyMon} />
 
+          <div className="enemy-move-slot-list">
+            {normalizedEnemy.moves.map((move, idx) => (
+              <div key={`${move}-${idx}`} className="enemy-move-slot-row">
+                <span className="enemy-slot-label">Slot {idx + 1}:</span>
+                <span>{move || '(No Move)'}</span>
+              </div>
+            ))}
+          </div>
+
           <MoveRows
             attacker={normalizedEnemy}
             defender={normalizedPlayer}
@@ -1148,11 +1240,12 @@ export default function App() {
         {aiProbs.length > 0 ? (
           <div className="ai-bars">
             {aiProbs.map((row) => (
-              <div key={row.move} className="ai-bar-row">
+              <div key={row.move} className="ai-bar-row" title={row.breakdown.join('\n')}>
                 <span className="ai-bar-label">{row.move}</span>
                 <div className="ai-bar-track">
                   <div className="ai-bar-fill" style={{ width: `${row.probability}%` }} />
                 </div>
+                <span className="ai-bar-score">{row.score.toFixed(1)}</span>
                 <span className="ai-bar-value">{row.probability.toFixed(1)}%</span>
               </div>
             ))}
