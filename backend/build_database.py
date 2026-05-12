@@ -2,12 +2,11 @@
 build_database.py
 Reads ../data/Platinum Kaizo Docs.xlsx and produces:
   - ../data/kaizo_data.json  (Pokémon stats/types/abilities + Move data)
-  - ../data/trainer_db.json  (Trainer rosters with natures, items, moves, AI flags)
+  - ../data/trainer_db.json  (Split-grouped trainer rosters + AI flags)
 
-AI flags for every trainer are sourced exclusively from the RAW TRAINER DATA
-sheet (the authoritative game-data export).  Boss-split trainer names such as
-"Champion Cynthia (Permanent Gravity)" are matched back to the plain name
-"Cynthia" in RAW TRAINER DATA via a cascading suffix search.
+Trainer data is sourced from the boss split sheets (Roark Split, Gardenia Split,
+etc.) so trainer names follow the curated split labels used in the document.
+AI flags are still resolved from RAW TRAINER DATA via normalized name matching.
 
 The ai_flags field is stored as a list of active flag strings, e.g.
 ["basic", "eval_att", "expert"].
@@ -160,27 +159,48 @@ def _build_raw_trainer_lookup(xl):
 
 def _flags_for_split_name(split_name: str, raw_lookup: dict) -> list:
     """
-    Given a split-sheet trainer name like "Champion Cynthia (Permanent Gravity)"
-    find the best match in raw_lookup (keyed by lower-cased plain name) and
-    return the active flag list.
-
-    Strategy:
-      1. Strip any parenthetical suffix.
-      2. Try the last word of what remains (the bare first name).
-      3. Then try progressively longer suffixes (in case of compound names).
-      4. Fall back to an empty list if nothing matches.
+    Given a split-sheet trainer name like "Pokemon Trainer Barry #4 (Player chose
+    Piplup)" find the best match in raw_lookup (keyed by lower-cased plain names)
+    and return the active flag list.
     """
-    # Strip parenthetical suffix
-    plain = re.sub(r'\s*\(.*\)', '', split_name).strip()
-    words = plain.split()
+    plain = re.sub(r'\s*\(.*?\)', '', split_name).strip()
+    plain = re.sub(r'#\d+', '', plain).strip()
+    plain = re.sub(r'\s+', ' ', plain)
 
-    # Try from the last word toward the full string
+    candidates = []
+    seen = set()
+
+    def add_candidate(value):
+        key = value.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            candidates.append(key)
+
+    add_candidate(plain)
+
+    words = [w for w in plain.split() if w]
     for start in range(len(words) - 1, -1, -1):
-        candidate = ' '.join(words[start:]).lower()
+        add_candidate(' '.join(words[start:]))
+
+    stripped_words = [re.sub(r"[^A-Za-z&'-]", '', w) for w in words]
+    stripped_words = [w for w in stripped_words if w]
+    for start in range(len(stripped_words) - 1, -1, -1):
+        add_candidate(' '.join(stripped_words[start:]))
+
+    for part in re.split(r'&|/|,', plain):
+        part = part.strip()
+        if not part:
+            continue
+        add_candidate(part)
+        part_words = [re.sub(r"[^A-Za-z'-]", '', w) for w in part.split()]
+        part_words = [w for w in part_words if w]
+        if part_words:
+            add_candidate(part_words[-1])
+
+    for candidate in candidates:
         if candidate in raw_lookup:
             return raw_lookup[candidate]
 
-    # No match
     return []
 
 
@@ -209,7 +229,7 @@ def _parse_split_sheet(df):
         col1  = _val(row.iloc[1])
 
         # ---- Trainer name row ----
-        if col16 is None and col4 and col1 is None and col4 not in (
+        if (not in_moves) and col16 is None and col4 and col1 is None and col4 not in (
             'AI Flag Key:', 'Route', 'Route 202', 'Route 203',
         ):
             if not re.match(r'^Lv\s', col4) and 'Split' not in col4 and 'Flag' not in col4:
@@ -271,7 +291,14 @@ def _parse_split_sheet(df):
                     current_trainer['pokemon'][idx]['item'] = item
 
         # ---- Moves rows ----
-        elif (col16 == 'Moves' or (in_moves and col16 is None and col4)) and current_trainer is not None:
+        elif (
+            col16 == 'Moves'
+            or (
+                in_moves
+                and col16 is None
+                and any((_val(row.iloc[sc]) if sc < len(row) else None) for sc in slot_cols)
+            )
+        ) and current_trainer is not None:
             in_moves = True
             for idx, sc in enumerate(slot_cols):
                 if idx >= len(current_trainer['pokemon']):
@@ -290,113 +317,41 @@ def parse_trainer_db(xl):
     # ── Step 1: Build authoritative AI-flags lookup from RAW TRAINER DATA ──
     raw_lookup = _build_raw_trainer_lookup(xl)
 
-    # ── Step 2: Load every trainer from RAW TRAINER DATA ───────────────────
-    raw_df      = xl.parse('RAW TRAINER DATA', header=0)
-    poke_df     = xl.parse('Trainer Pokemon',  header=0)
-
-    trainers = {}
-    for _, row in raw_df.iterrows():
-        tid = _val(row.get('ID Number'))
-        if tid is None:
-            continue
-        name = _val(row.get('Name')) or '-'
-        if name == '-':
-            continue
-        try:
-            tid = int(float(tid))
-        except (ValueError, TypeError):
-            continue
-
-        active_flags = raw_lookup.get(name.lower(), [])
-        trainers[tid] = {
-            'id':       tid,
-            'name':     name,
-            'ai_flags': active_flags,
-            'pokemon':  [],
-        }
-
-    # ── Step 3: Attach Pokémon rosters from Trainer Pokemon sheet ──────────
-    slot_offsets = [0, 11, 22, 33, 44, 55]
-
-    for _, row in poke_df.iterrows():
-        tid = _val(row.iloc[0])
-        if tid is None:
-            continue
-        try:
-            tid = int(float(tid))
-        except (ValueError, TypeError):
-            continue
-        if tid not in trainers:
-            continue
-
-        for offset in slot_offsets:
-            col_idx = 2 + offset
-            try:
-                species = _val(row.iloc[col_idx + 3])
-            except IndexError:
-                break
-            if not species:
-                continue
-            try:
-                level = int(row.iloc[col_idx + 2]) if not pd.isna(row.iloc[col_idx + 2]) else 0
-                item  = _val(row.iloc[col_idx + 5])
-                moves = [_val(row.iloc[col_idx + 6 + k]) for k in range(4)]
-            except IndexError:
-                level = 0
-                item  = None
-                moves = []
-
-            moves = [m for m in moves if m and m != '-']
-            trainers[tid]['pokemon'].append({
-                'slot':    len(trainers[tid]['pokemon']),
-                'level':   level,
-                'species': species,
-                'nature':  None,
-                'ability': None,
-                'item':    item,
-                'moves':   moves,
-            })
-
-    # ── Step 4: Parse boss-split sheets and cross-reference RAW TRAINER DATA ─
-    boss_trainers = []
+    # ── Step 2: Parse boss-split sheets and attach AI flags ─────────────────
+    split_groups = {}
     for sheet_name in BOSS_SPLITS:
         try:
             df = xl.parse(sheet_name, header=None)
-            boss_trainers.extend(_parse_split_sheet(df))
+            parsed = _parse_split_sheet(df)
         except Exception as e:
             print(f'  Warning: could not parse {sheet_name}: {e}')
+            continue
 
-    # Fill ai_flags for every boss-split trainer from RAW TRAINER DATA
-    for bt in boss_trainers:
-        bt['ai_flags'] = _flags_for_split_name(bt['name'], raw_lookup)
+        clean_trainers = []
+        for trainer in parsed:
+            name = _val(trainer.get('name'))
+            if not name:
+                continue
+            name = re.sub(r'\s+', ' ', name).strip()
+            if not name:
+                continue
+            if not trainer.get('pokemon'):
+                continue
+            if name in ('AI Flag Key:',):
+                continue
+            if 'PLATINUM KAIZO' in name.upper():
+                continue
 
-    # ── Step 5: Merge boss-split data into the main trainer map ────────────
-    # Index by plain name for matching
-    boss_by_name: dict = {}
-    for bt in boss_trainers:
-        boss_by_name.setdefault(bt['name'], bt)
+            clean_trainers.append({
+                'name': name,
+                'split': sheet_name,
+                'ai_flags': _flags_for_split_name(name, raw_lookup),
+                'pokemon': trainer['pokemon'],
+            })
 
-    # Build output dict
-    result = {}
-    for tid, tdata in trainers.items():
-        result[f"{tdata['name']}_{tid}"] = tdata
+        split_groups[sheet_name] = clean_trainers
 
-    # Boss-split trainers that weren't already in RAW TRAINER DATA get added
-    # by their split-sheet name (richer roster data from the split sheets).
-    # For any name that does match an existing entry, the split-sheet roster
-    # supplements it only when the base roster is empty.
-    for bt_name, bt in boss_by_name.items():
-        matched_key = None
-        for key, tdata in result.items():
-            if tdata['name'] == bt_name:
-                if not tdata['pokemon'] and bt['pokemon']:
-                    tdata['pokemon'] = bt['pokemon']
-                matched_key = key
-                break
-        if matched_key is None:
-            result[bt_name] = bt
-
-    return result
+    return split_groups
 
 
 # ---------------------------------------------------------------------------
@@ -620,7 +575,8 @@ def main():
 
     print('Parsing trainer sheets …')
     trainer_db = parse_trainer_db(xl)
-    print(f'  → {len(trainer_db)} trainers')
+    trainer_count = sum(len(group) for group in trainer_db.values())
+    print(f'  → {trainer_count} trainers across {len(trainer_db)} splits')
 
     out_path2 = os.path.join(OUT_DIR, 'trainer_db.json')
     with open(out_path2, 'w', encoding='utf-8') as f:

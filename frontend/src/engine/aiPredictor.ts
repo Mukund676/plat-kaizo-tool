@@ -272,6 +272,22 @@ const TYPE_IMMUNITIES: Record<string, string[]> = {
   Psychic: ['Dark'],
 };
 
+/** Partial Gen 4 type chart for move-specific Expert-flag checks. */
+const TYPE_EFFECTIVENESS: Record<string, Record<string, number>> = {
+  Bug: {
+    Grass: 2, Psychic: 2, Dark: 2,
+    Fire: 0.5, Fighting: 0.5, Poison: 0.5, Flying: 0.5, Ghost: 0.5, Steel: 0.5,
+  },
+  Dark: {
+    Ghost: 2, Psychic: 2,
+    Fighting: 0.5, Dark: 0.5, Steel: 0.5,
+  },
+  Fighting: {
+    Normal: 2, Rock: 2, Steel: 2, Ice: 2, Dark: 2,
+    Flying: 0.5, Poison: 0.5, Bug: 0.5, Psychic: 0.5, Ghost: 0,
+  },
+};
+
 /** Sound-based moves (Soundproof ability blocks) */
 const SOUND_MOVES = new Set([
   'Hyper Voice', 'Uproar', 'Snore', 'Roar', 'Perish Song',
@@ -421,6 +437,44 @@ function isNoDamageResult(damage: unknown): boolean {
     if (damage.length === 0) return true;
     const nums = damage.filter((v): v is number => typeof v === 'number');
     return nums.length === 0 || Math.max(...nums) <= 0;
+  }
+  return false;
+}
+
+function getTypeEffectivenessMultiplier(moveType: string | undefined, defenderTypes: string[] | undefined): number {
+  if (!moveType || !defenderTypes || defenderTypes.length === 0) return 1;
+  const typeChart = TYPE_EFFECTIVENESS[
+    moveType.charAt(0).toUpperCase() + moveType.slice(1).toLowerCase()
+  ];
+  if (!typeChart) return 1;
+  let mult = 1;
+  for (const t of defenderTypes) {
+    const key = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+    mult *= typeChart[key] ?? 1;
+  }
+  return mult;
+}
+
+function isResistedOrImmuneMove(
+  moveName: string,
+  attacker: BattleMon,
+  defender: BattleMon,
+): boolean {
+  const md = getMoveEntry(moveName);
+  if (!md || md.category === 'Status') return false;
+  const moveType = md.type as string | undefined;
+  if (hasAbilityImmunity(moveName, moveType, defender.ability, attacker.ability)) return true;
+  if (hasTypeImmunity(moveType, defender.types)) return true;
+  return getTypeEffectivenessMultiplier(moveType, defender.types) < 1;
+}
+
+function hasSuperEffectiveDamagingMove(attackerMoves: string[], defender: BattleMon): boolean {
+  for (const moveName of attackerMoves) {
+    const md = getMoveEntry(moveName);
+    if (!md || md.category === 'Status') continue;
+    const moveType = md.type as string | undefined;
+    if (hasTypeImmunity(moveType, defender.types)) continue;
+    if (getTypeEffectivenessMultiplier(moveType, defender.types) > 1) return true;
   }
   return false;
 }
@@ -631,6 +685,7 @@ function applyExpertFlag(
   moves: string[],
   enemyMon: BattleMon,
   playerMon: BattleMon,
+  fieldState: FieldState,
 ): void {
   const eFaster = enemyIsFaster(enemyMon, playerMon);
 
@@ -732,6 +787,58 @@ function applyExpertFlag(
     if (mv === 'Role Play' || mv === 'Skill Swap') {
       if (DESIRABLE_ABILITIES.has(enemyMon.ability ?? '')) scores[mv] -= 1;
       if (DESIRABLE_ABILITIES.has(playerMon.ability ?? '')) scores[mv] += p(0.805, 2);
+    }
+
+    // Pluck / Bug Bite
+    if (mv === 'Pluck' || mv === 'Bug Bite') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
+      if ((fieldState.turnNumber ?? 1) === 1) scores[mv] += p(0.75, 1);
+      scores[mv] += p(0.5, 1);
+    }
+
+    // U-turn
+    if (mv === 'U-turn' || mv === 'U Turn') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) {
+        scores[mv] -= 1;
+      } else {
+        if (enemyMon.isLastPokemon) {
+          scores[mv] += 2;
+        } else {
+          if (hasSuperEffectiveDamagingMove(moves, playerMon)) scores[mv] += p(0.75, -2);
+          if (playerMon.hpPercent > 70) scores[mv] += p(0.75, 1);
+          else if (playerMon.hpPercent > 30) scores[mv] += p(0.5, 1);
+          else scores[mv] += p(0.25, 1);
+          if (eFaster) scores[mv] += 1;
+          else scores[mv] += p(0.5, 1);
+        }
+      }
+    }
+
+    // Close Combat
+    if (mv === 'Close Combat') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
+      if (!eFaster && enemyMon.hpPercent <= 80) scores[mv] -= 1;
+      if (eFaster && enemyMon.hpPercent <= 60) scores[mv] -= 1;
+    }
+
+    // Payback
+    if (mv === 'Payback') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
+      if (!eFaster && enemyMon.hpPercent >= 30) scores[mv] += p(0.75, 1);
+    }
+
+    // Assurance
+    if (mv === 'Assurance') {
+      if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
+      if (!eFaster) {
+        if (enemyMon.ability === 'Rough Skin') {
+          scores[mv] += p(0.5, 1);
+        } else if (enemyMon.item === 'Jaboca Berry' || enemyMon.item === 'Rowap Berry') {
+          scores[mv] += p(0.5, 1);
+        } else {
+          scores[mv] += p(0.25, 1);
+        }
+      }
     }
   }
 }
@@ -1031,7 +1138,7 @@ export function predictEnemyMove(
   // Apply each flag in the order the document describes them
   if (aiFlags.basic)            applyBasicFlag(scores, moves, enemyMon, playerMon, field, fieldState.isTrickRoom ?? false);
   if (aiFlags.eval_att)         applyEvalAttFlag(scores, moves, enemyMon, playerMon, field);
-  if (aiFlags.expert)           applyExpertFlag(scores, moves, enemyMon, playerMon);
+  if (aiFlags.expert)           applyExpertFlag(scores, moves, enemyMon, playerMon, fieldState);
   if (aiFlags.setup_first_turn) applySetupFirstTurnFlag(scores, moves, fieldState);
   if (aiFlags.risky)            applyRiskyFlag(scores, moves);
   if (aiFlags.damage_prio)      applyPrioritizeExtremesFlag(scores, moves);

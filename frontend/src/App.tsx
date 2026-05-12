@@ -68,11 +68,14 @@ interface TrainerPokemon {
 interface TrainerEntry {
   id?: number
   name: string
+  split?: string
   ai_flags: string[]
   pokemon: TrainerPokemon[]
 }
 
 type TrainerDb = Record<string, TrainerEntry>
+type TrainerDbBySplit = Record<string, TrainerEntry[]>
+type TrainerOption = { key: string; split: string; trainer: TrainerEntry }
 
 type StatusCode = '' | 'slp' | 'psn' | 'brn' | 'frz' | 'par' | 'tox'
 
@@ -123,10 +126,59 @@ const STAT_KEYS: StatKey[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe']
 const WEATHER_OPTIONS = ['', 'sun', 'rain', 'sand', 'hail'] as const
 
 const kaizoData = kaizoRaw as KaizoData
-const db = trainerDb as TrainerDb
-const trainerKeys = Object.keys(db).filter((k) => db[k].pokemon.length > 0)
 const speciesOptions = Object.keys(kaizoData.pokemon).sort()
 const moveOptions = Object.keys(kaizoData.moves).sort()
+
+function isTrainerEntry(value: unknown): value is TrainerEntry {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    Array.isArray((value as TrainerEntry).pokemon) &&
+    typeof (value as TrainerEntry).name === 'string',
+  )
+}
+
+function normalizeTrainerDb(raw: unknown): TrainerOption[] {
+  if (!raw || typeof raw !== 'object') return []
+  const entries = Object.entries(raw as Record<string, unknown>)
+  if (entries.length === 0) return []
+
+  const looksGrouped = entries.every(([, value]) => Array.isArray(value))
+  if (looksGrouped) {
+    const grouped = raw as TrainerDbBySplit
+    const out: TrainerOption[] = []
+    for (const [split, trainers] of Object.entries(grouped)) {
+      trainers.forEach((trainer, idx) => {
+        if (isTrainerEntry(trainer) && trainer.pokemon.length > 0) {
+          out.push({
+            key: `${split}::${idx}`,
+            split,
+            trainer,
+          })
+        }
+      })
+    }
+    return out
+  }
+
+  const legacy = raw as TrainerDb
+  return Object.entries(legacy)
+    .filter(([, trainer]) => isTrainerEntry(trainer) && trainer.pokemon.length > 0)
+    .map(([key, trainer]) => ({
+      key,
+      split: trainer.split ?? 'All Trainers',
+      trainer,
+    }))
+}
+
+const trainerOptions = normalizeTrainerDb(trainerDb)
+const trainerKeys = trainerOptions.map((option) => option.key)
+const trainerByKey = new Map(trainerOptions.map((option) => [option.key, option]))
+const trainerOptionsBySplit = trainerOptions.reduce<Record<string, TrainerOption[]>>((acc, option) => {
+  if (!acc[option.split]) acc[option.split] = []
+  acc[option.split].push(option)
+  return acc
+}, {})
 
 const defaultEvs: StatSpread = { hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 }
 const defaultIvs: StatSpread = { hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31 }
@@ -378,7 +430,8 @@ export default function App() {
     multiple: false,
   })
 
-  const trainer = db[trainerKey]
+  const trainerOption = trainerByKey.get(trainerKey)
+  const trainer = trainerOption?.trainer
   const enemyPokemon = trainer?.pokemon ?? []
   const enemyMon = enemyPokemon[enemyIdx] ?? null
 
@@ -768,10 +821,14 @@ export default function App() {
             }}
             className="trainer-select"
           >
-            {trainerKeys.map((k) => (
-              <option key={k} value={k}>
-                {db[k].name}
-              </option>
+            {Object.entries(trainerOptionsBySplit).map(([splitName, options]) => (
+              <optgroup key={splitName} label={splitName}>
+                {options.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.trainer.name}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
 
