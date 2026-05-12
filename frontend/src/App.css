@@ -1,16 +1,16 @@
 * { box-sizing: border-box; }
 
 :root {
-  --bg: #f3f3f3;
-  --panel: #ffffff;
-  --line: #b7b7b7;
-  --line-dark: #8c8c8c;
-  --text: #1d1d1d;
-  --muted: #5e5e5e;
-  --header: #e7edf8;
-  --pill-bg: #e5f1ff;
-  --pill-fg: #245a9c;
-  --accent: #4e85d8;
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --line: #334155;
+  --line-dark: #475569;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --header: #273449;
+  --pill-bg: #1d4ed8;
+  --pill-fg: #ffffff;
+  --accent: #60a5fa;
 }
 
 body {
@@ -47,7 +47,8 @@ body {
 
 .upload-btn {
   border: 1px solid var(--line-dark);
-  background: linear-gradient(#fff, #ececec);
+  background: #334155;
+  color: var(--text);
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
@@ -127,15 +128,16 @@ body {
 .import-buttons button,
 .enemy-slot-buttons button {
   border: 1px solid var(--line-dark);
-  background: linear-gradient(#fff, #ececec);
+  background: #334155;
+  color: var(--text);
   padding: 2px 6px;
   cursor: pointer;
   font-size: 11px;
 }
 
 .enemy-slot-buttons button.active {
-  background: #dce9fb;
-  border-color: #5e8ed6;
+  background: #1d4ed8;
+  border-color: #60a5fa;
 }
 
 .attr-grid {
@@ -250,7 +252,7 @@ input::placeholder {
 }
 
 .stat-matrix th {
-  background: #f1f5fa;
+  background: #253247;
   font-weight: 700;
 }
 
@@ -312,7 +314,7 @@ input::placeholder {
   margin: 0;
   padding: 8px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: #111827;
   font-size: 13px;
   font-weight: 700;
 }
@@ -331,7 +333,7 @@ input::placeholder {
 
 .ai-bar-row {
   display: grid;
-  grid-template-columns: 180px 1fr 56px;
+  grid-template-columns: 180px 1fr 64px 56px;
   gap: 6px;
   align-items: center;
 }
@@ -345,16 +347,45 @@ input::placeholder {
 .ai-bar-track {
   height: 14px;
   border: 1px solid var(--line);
-  background: #f4f4f4;
+  background: #111827;
 }
 
 .ai-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #70a0e8, #9ec2f2);
+  background: linear-gradient(90deg, #2563eb, #60a5fa);
 }
 
+.ai-bar-score,
 .ai-bar-value {
   text-align: right;
+}
+
+.ai-flag-debug {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  border: 1px solid var(--line);
+  background: #111827;
+  padding: 6px;
+}
+
+.enemy-move-slot-list {
+  border: 1px solid var(--line);
+  background: #111827;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.enemy-move-slot-row {
+  display: flex;
+  gap: 6px;
+  color: var(--text);
+}
+
+.enemy-slot-label {
+  color: var(--muted);
 }
 
 @media (max-width: 1200px) {

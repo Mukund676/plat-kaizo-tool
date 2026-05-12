@@ -60,6 +60,11 @@ export interface FieldState {
   /** Turn number (1 = first turn of the battle) */
   turnNumber?: number;
   isDoubleBattle?: boolean;
+  hasFog?: boolean;
+  hasPartner?: boolean;
+  partnerHpPercent?: number;
+  partnerAbility?: string;
+  partnerStatus?: string;
 }
 
 export interface AIFlags {
@@ -82,6 +87,7 @@ export interface MoveProbability {
   move: string;
   score: number;
   probability: number;
+  breakdown: string[];
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -319,7 +325,7 @@ function p(prob: number, val: number): number {
 
 /** Build a @smogon/calc Pokemon from a BattleMon */
 function makePokemon(mon: BattleMon): Pokemon {
-  return new Pokemon(4, mon.species, {
+  const options = {
     level:  mon.level,
     nature: mon.nature as never,
     ability: mon.ability as never,
@@ -328,8 +334,8 @@ function makePokemon(mon: BattleMon): Pokemon {
     ivs:    mon.ivs ?? {},
     boosts: mon.boosts ?? {},
     status: mon.status,
-    curHP:  Math.round(mon.hpPercent / 100),
-  });
+  };
+  return new Pokemon(4, mon.species, options);
 }
 
 /** Get smogon move data (category, type, etc.) */
@@ -1106,6 +1112,20 @@ function applyStatusFlag(
   }
 }
 
+function applyFogModifier(
+  scores: Record<string, number>,
+  moves: string[],
+): void {
+  for (const mv of moves) {
+    const md = getMoveEntry(mv);
+    if (!md || md.category === 'Status') continue;
+    const accuracy = (md as unknown as { accuracy?: number }).accuracy;
+    if (typeof accuracy === 'number' && accuracy < 100) {
+      scores[mv] -= 1;
+    }
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Main export
 // ────────────────────────────────────────────────────────────────────────────
@@ -1156,24 +1176,40 @@ export function predictEnemyMove(
   // Initialise all scores to 100
   const scores: Record<string, number> = {};
   for (const mv of moves) scores[mv] = 100;
+  const breakdownByMove: Record<string, string[]> = Object.fromEntries(
+    moves.map((mv) => [mv, ['Base Score: 100']]),
+  );
 
   const field = new Field({
     weather: fieldState.weather as never,
   });
 
+  const applyFlagWithBreakdown = (enabled: boolean | undefined, label: string, applyFn: () => void): void => {
+    if (!enabled) return;
+    const before = Object.fromEntries(moves.map((mv) => [mv, scores[mv]]));
+    applyFn();
+    for (const mv of moves) {
+      const delta = scores[mv] - (before[mv] ?? scores[mv]);
+      if (Math.abs(delta) > 0.0001) {
+        breakdownByMove[mv].push(`${label}: ${delta > 0 ? '+' : ''}${parseFloat(delta.toFixed(1))}`);
+      }
+    }
+  };
+
   // Apply each flag in the order the document describes them
-  if (aiFlags.basic)            applyBasicFlag(scores, moves, enemyMon, playerMon, field, fieldState.isTrickRoom ?? false);
-  if (aiFlags.eval_att)         applyEvalAttFlag(scores, moves, enemyMon, playerMon, field);
-  if (aiFlags.expert)           applyExpertFlag(scores, moves, enemyMon, playerMon, fieldState);
-  if (aiFlags.setup_first_turn) applySetupFirstTurnFlag(scores, moves, fieldState);
-  if (aiFlags.risky)            applyRiskyFlag(scores, moves);
-  if (aiFlags.damage_prio)      applyPrioritizeExtremesFlag(scores, moves);
-  if (aiFlags.baton_pass)       applyBatonPassFlag(scores, moves, enemyMon, fieldState);
-  if (aiFlags.tag_strategy)     applyTagStrategyFlag(scores, moves, enemyMon, playerMon, field);
-  if (aiFlags.check_hp)         applyCheckHPFlag(scores, moves, enemyMon, playerMon);
-  if (aiFlags.weather)          applyWeatherFlag(scores, moves, enemyMon, fieldState);
-  if (aiFlags.harassment)       applyHarassmentFlag(scores, moves);
-  if (aiFlags.status)           applyStatusFlag(scores, moves, playerMon);
+  applyFlagWithBreakdown(aiFlags.basic, 'Basic Flag', () => applyBasicFlag(scores, moves, enemyMon, playerMon, field, fieldState.isTrickRoom ?? false));
+  applyFlagWithBreakdown(aiFlags.eval_att, 'Evaluate Attack Flag', () => applyEvalAttFlag(scores, moves, enemyMon, playerMon, field));
+  applyFlagWithBreakdown(aiFlags.expert, 'Expert Flag', () => applyExpertFlag(scores, moves, enemyMon, playerMon, fieldState));
+  applyFlagWithBreakdown(aiFlags.setup_first_turn, 'Setup First Turn Flag', () => applySetupFirstTurnFlag(scores, moves, fieldState));
+  applyFlagWithBreakdown(aiFlags.risky, 'Risky Flag', () => applyRiskyFlag(scores, moves));
+  applyFlagWithBreakdown(aiFlags.damage_prio, 'Prioritize Damage Flag', () => applyPrioritizeExtremesFlag(scores, moves));
+  applyFlagWithBreakdown(aiFlags.baton_pass, 'Baton Pass Flag', () => applyBatonPassFlag(scores, moves, enemyMon, fieldState));
+  applyFlagWithBreakdown(aiFlags.tag_strategy, 'Tag Strategy Flag', () => applyTagStrategyFlag(scores, moves, enemyMon, playerMon, field));
+  applyFlagWithBreakdown(aiFlags.check_hp, 'Check HP Flag', () => applyCheckHPFlag(scores, moves, enemyMon, playerMon));
+  applyFlagWithBreakdown(aiFlags.weather, 'Weather Flag', () => applyWeatherFlag(scores, moves, enemyMon, fieldState));
+  applyFlagWithBreakdown(aiFlags.harassment, 'Harassment Flag', () => applyHarassmentFlag(scores, moves));
+  applyFlagWithBreakdown(aiFlags.status, 'Prioritize Status Flag', () => applyStatusFlag(scores, moves, playerMon));
+  applyFlagWithBreakdown(fieldState.hasFog, 'Fog Modifier', () => applyFogModifier(scores, moves));
 
   // Hard invalidation for moves that cannot damage the current target.
   for (const mv of moves) {
@@ -1182,6 +1218,7 @@ export function predictEnemyMove(
     const moveType: string | undefined = md.type as string | undefined;
     if (hasTypeImmunity(moveType, playerMon.types)) {
       scores[mv] = 0;
+      breakdownByMove[mv].push('Immunity Invalidation: set to 0');
       continue;
     }
     try {
@@ -1191,6 +1228,7 @@ export function predictEnemyMove(
       const result = calculate(4, atk, def, smgMove, field);
       if (isNoDamageResult(result.damage)) {
         scores[mv] = 0;
+        breakdownByMove[mv].push('No-Damage Invalidation: set to 0');
       }
     } catch {
       // ignore calc failures
@@ -1198,17 +1236,34 @@ export function predictEnemyMove(
   }
 
   // Clamp to 0 minimum
-  for (const mv of moves) scores[mv] = Math.max(0, scores[mv]);
+  for (const mv of moves) {
+    const beforeClamp = scores[mv];
+    scores[mv] = Math.max(0, scores[mv]);
+    if (scores[mv] !== beforeClamp) {
+      breakdownByMove[mv].push(`Clamp: ${parseFloat(beforeClamp.toFixed(1))} → ${scores[mv]}`);
+    }
+  }
 
-  // Convert to probabilities per Gen 4 trainer AI:
-  // choose only from the highest-scoring move(s), splitting evenly on ties.
+  // Probability model: weighted softmax over final scores to avoid flat ties.
+  const temperature = 0.75;
   const maxScore = Math.max(...moves.map((mv) => scores[mv]));
-  const topMoves = moves.filter((mv) => scores[mv] === maxScore);
-  const topProbability = topMoves.length > 0 ? 100 / topMoves.length : 0;
+  const rawWeights = moves.map((mv) => (scores[mv] <= 0 ? 0 : Math.exp((scores[mv] - maxScore) / temperature)));
+  const weightSum = rawWeights.reduce((a, b) => a + b, 0);
+  const probabilities = weightSum > 0
+    ? rawWeights.map((w) => (w / weightSum) * 100)
+    : moves.map(() => 100 / moves.length);
 
-  return moves.map((mv) => ({
-    move:  mv,
-    score: scores[mv],
-    probability: parseFloat((topMoves.includes(mv) ? topProbability : 0).toFixed(1)),
-  }));
+  return moves.map((mv, idx) => {
+    const probability = parseFloat(probabilities[idx].toFixed(1));
+    return {
+      move:  mv,
+      score: parseFloat(scores[mv].toFixed(1)),
+      probability,
+      breakdown: [
+        ...breakdownByMove[mv],
+        `Final Score: ${parseFloat(scores[mv].toFixed(1))}`,
+        `Final Probability: ${probability}%`,
+      ],
+    };
+  });
 }
