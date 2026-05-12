@@ -657,7 +657,7 @@ export default function App() {
 
   const [playerMon, setPlayerMon] = useState<EditableMon>(createDefaultMon())
   const [activeSplit, setActiveSplit] = useState<string>(DEFAULT_SPLIT)
-  const [trainerKey, setTrainerKey] = useState(() => getFirstTrainerKeyForSplit(trainerOptions, DEFAULT_SPLIT) || trainerOptions[0]?.key || '')
+  const [trainerKey, setTrainerKey] = useState(() => getFirstTrainerKeyForSplit(trainerOptions, DEFAULT_SPLIT))
   const [enemySlot, setEnemySlot] = useState(0)
   const [aiFlagOverrides, setAiFlagOverrides] = useState<Record<string, boolean>>({})
   const [mainDamageSelection, setMainDamageSelection] = useState<{ side: DamageSourceSide; idx: number }>({
@@ -1119,6 +1119,7 @@ export default function App() {
           <label className="boss-picker">Boss Trainer
             <select
               value={trainerKey}
+              disabled={filteredTrainers.length === 0}
               onChange={(e) => {
                 selectTrainer(e.target.value)
               }}
