@@ -51,6 +51,7 @@ type TrainerDbBySplit = Record<string, TrainerEntry[]>
 type TrainerOption = { key: string; split: string; trainer: TrainerEntry }
 
 const TRAINER_SPLITS = ['Roark', 'Gardenia', 'Fantina', 'Maylene', 'Wake', 'Byron', 'Candice', 'Volkner', 'Galactic', 'Elite Four'] as const
+const DEFAULT_SPLIT = TRAINER_SPLITS[0]
 
 interface KaizoPokemon {
   id: number
@@ -362,6 +363,10 @@ function normalizeTrainerDb(raw: unknown): TrainerOption[] {
   return out
 }
 
+function getFirstTrainerKeyForSplit(trainers: TrainerOption[], split: string): string {
+  return trainers.find((trainer) => trainer.split === split)?.key ?? ''
+}
+
 function moveMeta(moveName: string): KaizoMove | null {
   return kaizoData.moves[moveName] ?? null
 }
@@ -651,8 +656,8 @@ export default function App() {
   const [uploading, setUploading] = useState(false)
 
   const [playerMon, setPlayerMon] = useState<EditableMon>(createDefaultMon())
-  const [activeSplit, setActiveSplit] = useState('Roark')
-  const [trainerKey, setTrainerKey] = useState(() => trainerOptions.find((trainer) => trainer.split === 'Roark')?.key ?? trainerOptions[0]?.key ?? '')
+  const [activeSplit, setActiveSplit] = useState<string>(DEFAULT_SPLIT)
+  const [trainerKey, setTrainerKey] = useState(() => getFirstTrainerKeyForSplit(trainerOptions, DEFAULT_SPLIT) || trainerOptions[0]?.key || '')
   const [enemySlot, setEnemySlot] = useState(0)
   const [aiFlagOverrides, setAiFlagOverrides] = useState<Record<string, boolean>>({})
   const [mainDamageSelection, setMainDamageSelection] = useState<{ side: DamageSourceSide; idx: number }>({
@@ -1094,7 +1099,7 @@ export default function App() {
                 className={activeSplit === split ? 'split-toggle active' : 'split-toggle'}
                 onClick={() => {
                   setActiveSplit(split)
-                  const firstSplitTrainerKey = trainerOptions.find((trainer) => trainer.split === split)?.key ?? ''
+                  const firstSplitTrainerKey = getFirstTrainerKeyForSplit(trainerOptions, split)
                   selectTrainer(firstSplitTrainerKey)
                 }}
               >
