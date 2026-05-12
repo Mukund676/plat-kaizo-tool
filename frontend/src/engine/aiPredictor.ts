@@ -415,9 +415,6 @@ function hasTypeImmunity(moveType: string | undefined, defenderTypes: string[] |
     .some((t) => immuneDefenderTypes.includes(t));
 }
 
-/** Moves that are only sensible with immediate turn-history context. */
-const CONTEXT_DEPENDENT_MOVES = new Set(['Counter', 'Mirror Coat', 'Metal Burst']);
-
 function isNoDamageResult(damage: unknown): boolean {
   if (typeof damage === 'number') return damage <= 0;
   if (Array.isArray(damage)) {
@@ -452,11 +449,6 @@ function applyBasicFlag(
   for (const mv of moves) {
     const md = getMoveEntry(mv);
     const moveType: string | undefined = md?.type as string | undefined;
-
-    if (hasTypeImmunity(moveType, playerMon.types)) {
-      scores[mv] -= 10;
-      continue;
-    }
 
     // ── 1. Type immunity ─────────────────────────────────────────────────
     if (md && md.category !== 'Status') {
@@ -1050,13 +1042,8 @@ export function predictEnemyMove(
   if (aiFlags.harassment)       applyHarassmentFlag(scores, moves);
   if (aiFlags.status)           applyStatusFlag(scores, moves, playerMon);
 
-  // Hard invalidation for moves that cannot function in current known context.
+  // Hard invalidation for moves that cannot damage the current target.
   for (const mv of moves) {
-    if (CONTEXT_DEPENDENT_MOVES.has(mv) && !playerMon.lastUsedMove) {
-      scores[mv] = 0;
-      continue;
-    }
-
     const md = getMoveEntry(mv);
     if (!md || md.category === 'Status') continue;
     const moveType: string | undefined = md.type as string | undefined;
