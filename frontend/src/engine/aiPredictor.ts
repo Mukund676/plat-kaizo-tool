@@ -400,6 +400,163 @@ function getMaxDamage(
   }
 }
 
+/** Get the minimum roll damage for a move (for guaranteed KO checks) */
+function getMinDamage(
+  attacker: BattleMon,
+  defender: BattleMon,
+  moveName: string,
+  field: Field,
+): number {
+  if (ZERO_DAMAGE_EFFECTS.has(moveName)) return 0;
+  if (isStatusMove(moveName)) return 0;
+  try {
+    const atk = makePokemon(attacker);
+    const def = makePokemon(defender);
+    const mv = new Move(4, moveName);
+    const result = calculate(4, atk, def, mv, field);
+    const rolls = result.damage;
+    if (!Array.isArray(rolls) || rolls.length === 0) return 0;
+    const dmg = rolls as number[];
+    return dmg[0];
+  } catch {
+    return 0;
+  }
+}
+
+const DRAWBACK_MOVES = new Set([
+  'Brave Bird', 'Double-Edge', 'Flare Blitz', 'Head Smash', 'Submission', 'Take Down', 'Volt Tackle', 'Wood Hammer',
+  'Close Combat', 'Superpower', 'Draco Meteor', 'Leaf Storm', 'Overheat', 'Psycho Boost', 'Hammer Arm',
+]);
+
+function getEstimatedMaxHp(mon: BattleMon): number {
+  try {
+    const built = makePokemon(mon) as unknown as { rawStats?: { hp?: number }; stats?: { hp?: number } };
+    const hp = built.rawStats?.hp ?? built.stats?.hp;
+    if (typeof hp === 'number' && hp > 0) return hp;
+  } catch {
+    // fallback below
+  }
+  return Math.max(1, Math.round(mon.level * 2.5 + 10));
+}
+
+function getEstimatedCurrentHp(mon: BattleMon): number {
+  const maxHp = getEstimatedMaxHp(mon);
+  return Math.max(1, Math.round((Math.max(0, mon.hpPercent) / 100) * maxHp));
+}
+
+function getMoveAccuracyMultiplier(moveName: string): number {
+  const md = getMoveEntry(moveName) as unknown as { accuracy?: number | true } | null;
+  if (!md) return 1;
+  const accuracy = md.accuracy;
+  if (accuracy === true || accuracy == null) return 1;
+  if (typeof accuracy !== 'number' || !Number.isFinite(accuracy)) return 1;
+  return Math.max(0, Math.min(1, accuracy / 100));
+}
+
+function hasMoveDrawback(moveName: string): boolean {
+  if (DRAWBACK_MOVES.has(moveName)) return true;
+  const md = getMoveEntry(moveName) as unknown as {
+    recoil?: unknown;
+    hasCrashDamage?: boolean;
+    mindBlownRecoil?: boolean;
+    struggleRecoil?: boolean;
+    self?: { boosts?: Record<string, number> };
+  } | null;
+  if (!md) return false;
+  if (md.recoil || md.hasCrashDamage || md.mindBlownRecoil || md.struggleRecoil) return true;
+  const selfBoosts = md.self?.boosts ?? {};
+  return Object.values(selfBoosts).some((stageDelta) => typeof stageDelta === 'number' && stageDelta < 0);
+}
+
+function isMoveImmune(attacker: BattleMon, defender: BattleMon, moveName: string, field: Field): boolean {
+  const md = getMoveEntry(moveName);
+  if (!md || md.category === 'Status') return false;
+  const moveType = md.type as string | undefined;
+  if (hasTypeImmunity(moveType, defender.types)) return true;
+  if (hasAbilityImmunity(moveName, moveType, defender.ability, attacker.ability)) return true;
+  try {
+    const atk = makePokemon(attacker);
+    const def = makePokemon(defender);
+    const mv = new Move(4, moveName);
+    const result = calculate(4, atk, def, mv, field);
+    return isNoDamageResult(result.damage);
+  } catch {
+    return false;
+  }
+}
+
+function isStatusMoveRedundant(attacker: BattleMon, defender: BattleMon, moveName: string): boolean {
+  if (!SLEEP_MOVES.has(moveName) && !POISON_MOVES.has(moveName) && !PARALYSIS_MOVES.has(moveName) && !BURN_MOVES.has(moveName)) {
+    return false;
+  }
+  if (defender.status) return true;
+  if (defender.hasSafeguard) return true;
+
+  const defenderAbility = defender.ability ?? '';
+  const attackerAbility = attacker.ability ?? '';
+  const defenderTypes = defender.types ?? [];
+
+  if (SLEEP_MOVES.has(moveName) && (defenderAbility === 'Insomnia' || defenderAbility === 'Vital Spirit')) return true;
+  if (POISON_MOVES.has(moveName)) {
+    if (defenderTypes.includes('Steel') || defenderTypes.includes('Poison')) return true;
+    if (['Immunity', 'Magic Guard', 'Poison Heal'].includes(defenderAbility)) return true;
+  }
+  if (PARALYSIS_MOVES.has(moveName)) {
+    if (['Limber', 'Magic Guard'].includes(defenderAbility)) return true;
+    if (moveName === 'Thunder Wave' && ['Motor Drive', 'Volt Absorb'].includes(defenderAbility) && attackerAbility !== 'Mold Breaker') {
+      return true;
+    }
+  }
+  if (BURN_MOVES.has(moveName)) {
+    if (defenderTypes.includes('Fire')) return true;
+    if (['Water Veil', 'Magic Guard'].includes(defenderAbility)) return true;
+  }
+  return false;
+}
+
+function isSetupRedundant(mon: BattleMon, moveName: string): boolean {
+  const boosts = mon.boosts ?? {};
+  const hasMaxStage = (key: 'atk' | 'def' | 'spa' | 'spd' | 'spe' | 'eva'): boolean => (boosts[key] ?? 0) >= 6;
+
+  if (ATTACK_BOOST_MOVES.has(moveName) && hasMaxStage('atk')) return true;
+  if (SPEED_BOOST_MOVES.has(moveName) && hasMaxStage('spe')) return true;
+  if (EVASION_BOOST_MOVES.has(moveName) && hasMaxStage('eva')) return true;
+  if (DUAL_BOOST_MOVES.has(moveName)) {
+    if (moveName === 'Dragon Dance') return hasMaxStage('atk') || hasMaxStage('spe');
+    if (moveName === 'Bulk Up') return hasMaxStage('atk') || hasMaxStage('def');
+    if (moveName === 'Calm Mind') return hasMaxStage('spa') || hasMaxStage('spd');
+    if (moveName === 'Cosmic Power') return hasMaxStage('def') || hasMaxStage('spd');
+    return hasMaxStage('atk') || hasMaxStage('spe') || hasMaxStage('def') || hasMaxStage('spa') || hasMaxStage('spd');
+  }
+
+  const md = getMoveEntry(moveName) as unknown as { self?: { boosts?: Record<string, number> } } | null;
+  const selfBoosts = md?.self?.boosts ?? {};
+  for (const [stat, delta] of Object.entries(selfBoosts)) {
+    if (typeof delta === 'number' && delta > 0) {
+      const stage = (boosts as Record<string, number | undefined>)[stat] ?? 0;
+      if (stage >= 6) return true;
+    }
+  }
+  return false;
+}
+
+function isStatusOrSetupMove(moveName: string): boolean {
+  return isStatusMove(moveName)
+    || ATTACK_BOOST_MOVES.has(moveName)
+    || SPEED_BOOST_MOVES.has(moveName)
+    || DUAL_BOOST_MOVES.has(moveName)
+    || EVASION_BOOST_MOVES.has(moveName);
+}
+
+function playerCanLikelyKoThisTurn(playerMon: BattleMon, enemyMon: BattleMon, field: Field): boolean {
+  const enemyCurrentHp = getEstimatedCurrentHp(enemyMon);
+  for (const moveName of playerMon.moves.filter(Boolean)) {
+    const maxDamage = getMaxDamage(playerMon, enemyMon, moveName, field);
+    if (maxDamage >= enemyCurrentHp) return true;
+  }
+  return false;
+}
+
 /** Check if a defender's ability makes them immune to this move */
 function hasAbilityImmunity(
   moveName: string,
@@ -1126,6 +1283,23 @@ function applyFogModifier(
   }
 }
 
+const legacyFlagScorers = [
+  applyBasicFlag,
+  applyEvalAttFlag,
+  applyExpertFlag,
+  applySetupFirstTurnFlag,
+  applyRiskyFlag,
+  applyPrioritizeExtremesFlag,
+  applyBatonPassFlag,
+  applyTagStrategyFlag,
+  applyCheckHPFlag,
+  applyWeatherFlag,
+  applyHarassmentFlag,
+  applyStatusFlag,
+  applyFogModifier,
+];
+void legacyFlagScorers;
+
 // ────────────────────────────────────────────────────────────────────────────
 // Main export
 // ────────────────────────────────────────────────────────────────────────────
@@ -1147,32 +1321,6 @@ export function predictEnemyMove(
   const moves = enemyMon.moves.filter(Boolean);
   if (moves.length === 0) return [];
 
-  const activeFlags = Object.entries(aiFlags)
-    .filter(([, isEnabled]) => Boolean(isEnabled))
-    .map(([key]) => key);
-  if (activeFlags.length === 0) {
-    console.warn('[AI Predictor] No active AI flags supplied.', {
-      aiFlags,
-      fieldState,
-      playerMon: {
-        species: playerMon.species,
-        hpPercent: playerMon.hpPercent,
-        moves: playerMon.moves,
-      },
-      enemyMon: {
-        species: enemyMon.species,
-        hpPercent: enemyMon.hpPercent,
-        moves: enemyMon.moves,
-      },
-    });
-  }
-  if (!Number.isFinite(playerMon.hpPercent) || !Number.isFinite(enemyMon.hpPercent)) {
-    console.warn('[AI Predictor] Invalid hpPercent values received.', {
-      playerHpPercent: playerMon.hpPercent,
-      enemyHpPercent: enemyMon.hpPercent,
-    });
-  }
-
   // Initialise all scores to 100
   const scores: Record<string, number> = {};
   for (const mv of moves) scores[mv] = 100;
@@ -1183,86 +1331,98 @@ export function predictEnemyMove(
   const field = new Field({
     weather: fieldState.weather as never,
   });
+  void aiFlags;
+  void fieldState;
 
-  const applyFlagWithBreakdown = (enabled: boolean | undefined, label: string, applyFn: () => void): void => {
-    if (!enabled) return;
-    const before = Object.fromEntries(moves.map((mv) => [mv, scores[mv]]));
-    applyFn();
-    for (const mv of moves) {
-      const delta = scores[mv] - (before[mv] ?? scores[mv]);
-      if (Math.abs(delta) > 0.0001) {
-        breakdownByMove[mv].push(`${label}: ${delta > 0 ? '+' : ''}${parseFloat(delta.toFixed(1))}`);
-      }
-    }
-  };
-
-  // Apply each flag in the order the document describes them
-  applyFlagWithBreakdown(aiFlags.basic, 'Basic Flag', () => applyBasicFlag(scores, moves, enemyMon, playerMon, field, fieldState.isTrickRoom ?? false));
-  applyFlagWithBreakdown(aiFlags.eval_att, 'Evaluate Attack Flag', () => applyEvalAttFlag(scores, moves, enemyMon, playerMon, field));
-  applyFlagWithBreakdown(aiFlags.expert, 'Expert Flag', () => applyExpertFlag(scores, moves, enemyMon, playerMon, fieldState));
-  applyFlagWithBreakdown(aiFlags.setup_first_turn, 'Setup First Turn Flag', () => applySetupFirstTurnFlag(scores, moves, fieldState));
-  applyFlagWithBreakdown(aiFlags.risky, 'Risky Flag', () => applyRiskyFlag(scores, moves));
-  applyFlagWithBreakdown(aiFlags.damage_prio, 'Prioritize Damage Flag', () => applyPrioritizeExtremesFlag(scores, moves));
-  applyFlagWithBreakdown(aiFlags.baton_pass, 'Baton Pass Flag', () => applyBatonPassFlag(scores, moves, enemyMon, fieldState));
-  applyFlagWithBreakdown(aiFlags.tag_strategy, 'Tag Strategy Flag', () => applyTagStrategyFlag(scores, moves, enemyMon, playerMon, field));
-  applyFlagWithBreakdown(aiFlags.check_hp, 'Check HP Flag', () => applyCheckHPFlag(scores, moves, enemyMon, playerMon));
-  applyFlagWithBreakdown(aiFlags.weather, 'Weather Flag', () => applyWeatherFlag(scores, moves, enemyMon, fieldState));
-  applyFlagWithBreakdown(aiFlags.harassment, 'Harassment Flag', () => applyHarassmentFlag(scores, moves));
-  applyFlagWithBreakdown(aiFlags.status, 'Prioritize Status Flag', () => applyStatusFlag(scores, moves, playerMon));
-  applyFlagWithBreakdown(fieldState.hasFog, 'Fog Modifier', () => applyFogModifier(scores, moves));
-
-  // Hard invalidation for moves that cannot damage the current target.
+  // 1) Zero-weight checks (immunity, status redundancy, setup redundancy)
   for (const mv of moves) {
-    const md = getMoveEntry(mv);
-    if (!md || md.category === 'Status') continue;
-    const moveType: string | undefined = md.type as string | undefined;
-    if (hasTypeImmunity(moveType, playerMon.types)) {
+    if (scores[mv] === 0) continue;
+    if (isMoveImmune(enemyMon, playerMon, mv, field)) {
       scores[mv] = 0;
-      breakdownByMove[mv].push('Immunity Invalidation: set to 0');
+      breakdownByMove[mv].push('Zero Weight: immunity');
       continue;
     }
-    try {
-      const atk = makePokemon(enemyMon);
-      const def = makePokemon(playerMon);
-      const smgMove = new Move(4, mv);
-      const result = calculate(4, atk, def, smgMove, field);
-      if (isNoDamageResult(result.damage)) {
-        scores[mv] = 0;
-        breakdownByMove[mv].push('No-Damage Invalidation: set to 0');
-      }
-    } catch {
-      // ignore calc failures
+    if (isStatusMoveRedundant(enemyMon, playerMon, mv)) {
+      scores[mv] = 0;
+      breakdownByMove[mv].push('Zero Weight: status redundancy');
+      continue;
+    }
+    if (isSetupRedundant(enemyMon, mv)) {
+      scores[mv] = 0;
+      breakdownByMove[mv].push('Zero Weight: setup redundancy');
     }
   }
 
-  // Clamp to 0 minimum
+  const targetCurrentHp = getEstimatedCurrentHp(playerMon);
+  const targetMaxHp = getEstimatedMaxHp(playerMon);
+  const koMoves = new Set<string>();
+  const expectedDamageByMove: Record<string, number> = {};
+
+  // 2) KO check + accuracy tie-breaker
   for (const mv of moves) {
-    const beforeClamp = scores[mv];
-    scores[mv] = Math.max(0, scores[mv]);
-    if (scores[mv] !== beforeClamp) {
-      breakdownByMove[mv].push(`Clamp: ${parseFloat(beforeClamp.toFixed(1))} → ${scores[mv]}`);
+    if (scores[mv] === 0) continue;
+    const minDamage = getMinDamage(enemyMon, playerMon, mv, field);
+    const expectedDamage = getDamage(enemyMon, playerMon, mv, field);
+    expectedDamageByMove[mv] = expectedDamage;
+
+    if (minDamage >= targetCurrentHp) {
+      scores[mv] *= 10;
+      breakdownByMove[mv].push('KO Flag: x10');
+      const accuracyMultiplier = getMoveAccuracyMultiplier(mv);
+      scores[mv] *= accuracyMultiplier;
+      breakdownByMove[mv].push(`Accuracy Tie-Breaker: x${accuracyMultiplier.toFixed(2)}`);
+      koMoves.add(mv);
     }
   }
 
-  // Probability model: weighted softmax over final scores to avoid flat ties.
-  const temperature = 0.75;
-  const maxScore = Math.max(...moves.map((mv) => scores[mv]));
-  const rawWeights = moves.map((mv) => (scores[mv] <= 0 ? 0 : Math.exp((scores[mv] - maxScore) / temperature)));
-  const weightSum = rawWeights.reduce((a, b) => a + b, 0);
-  const probabilities = weightSum > 0
-    ? rawWeights.map((w) => (w / weightSum) * 100)
-    : moves.map(() => 100 / moves.length);
+  // 3) Drawback avoidance among KO moves
+  if (koMoves.size > 1) {
+    for (const mv of koMoves) {
+      if (!hasMoveDrawback(mv)) continue;
+      scores[mv] *= 0.8;
+      breakdownByMove[mv].push('Drawback Avoidance: x0.80');
+    }
+  }
 
-  return moves.map((mv, idx) => {
-    const probability = parseFloat(probabilities[idx].toFixed(1));
+  // 4) Raw damage scaling when there are no KO moves
+  if (koMoves.size === 0) {
+    for (const mv of moves) {
+      if (scores[mv] === 0) continue;
+      const expectedDamage = expectedDamageByMove[mv] ?? getDamage(enemyMon, playerMon, mv, field);
+      const scale = targetMaxHp > 0 ? Math.max(0, expectedDamage / targetMaxHp) : 0;
+      scores[mv] *= scale;
+      breakdownByMove[mv].push(`Raw Damage Scaling: x${scale.toFixed(3)}`);
+    }
+  }
+
+  // 5) Desperation flag
+  const enemySlower = !enemyIsFaster(enemyMon, playerMon);
+  const playerCanKoEnemy = playerCanLikelyKoThisTurn(playerMon, enemyMon, field);
+  if (enemySlower && playerCanKoEnemy) {
+    for (const mv of moves) {
+      if (scores[mv] === 0) continue;
+      if (!isStatusOrSetupMove(mv)) continue;
+      scores[mv] *= 0.1;
+      breakdownByMove[mv].push('Desperation: x0.10');
+    }
+  }
+
+  // 6) Normalize over non-zero scores only
+  const validMoves = moves.filter((mv) => scores[mv] > 0);
+  if (validMoves.length === 0) return [];
+  const totalScore = validMoves.reduce((sum, mv) => sum + scores[mv], 0);
+  if (totalScore <= 0) return [];
+
+  return validMoves.map((mv) => {
+    const probability = (scores[mv] / totalScore) * 100;
     return {
-      move:  mv,
-      score: parseFloat(scores[mv].toFixed(1)),
-      probability,
+      move: mv,
+      score: parseFloat(scores[mv].toFixed(2)),
+      probability: parseFloat(probability.toFixed(1)),
       breakdown: [
         ...breakdownByMove[mv],
-        `Final Score: ${parseFloat(scores[mv].toFixed(1))}`,
-        `Final Probability: ${probability}%`,
+        `Final Score: ${parseFloat(scores[mv].toFixed(2))}`,
+        `Final Probability: ${parseFloat(probability.toFixed(1))}%`,
       ],
     };
   });
