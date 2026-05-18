@@ -120,7 +120,7 @@ interface FieldUiState {
   fog: boolean
   partnerPresent: boolean
   partnerHpPercent: number
-  partnerStatus: '' | 'healthy' | 'fainted' | 'statused'
+  partnerStatus: 'unknown' | 'healthy' | 'fainted' | 'statused'
   turnNumber: number
   battleMode: 'singles' | 'doubles'
 }
@@ -731,7 +731,7 @@ export default function App() {
     fog: false,
     partnerPresent: false,
     partnerHpPercent: 100,
-    partnerStatus: '',
+    partnerStatus: 'unknown',
     turnNumber: 1,
     battleMode: 'singles',
   })
@@ -1128,7 +1128,7 @@ export default function App() {
               value={fieldState.partnerStatus}
               onChange={(e) => setFieldState((prev) => ({ ...prev, partnerStatus: e.target.value as FieldUiState['partnerStatus'] }))}
             >
-              <option value="">Unknown</option>
+              <option value="unknown">Unknown</option>
               <option value="healthy">Healthy</option>
               <option value="fainted">Fainted</option>
               <option value="statused">Statused</option>
@@ -1355,7 +1355,7 @@ export default function App() {
               return (
                 <div key={`${row.species}-${row.partyIndex}`} className={isWinner ? 'switch-row winner' : 'switch-row'}>
                   <span className="switch-species">{row.species}</span>
-                  <span>Phase 1 Score: {row.phase1Score == null ? '—' : `${row.phase1Score.toFixed(2)}x`}</span>
+                  <span>Phase 1 Score: {row.phase1Score === null ? '—' : `${row.phase1Score.toFixed(2)}x`}</span>
                   <span>Phase 2 Max Damage Roll: {row.phase2MaxDamageRoll} HP</span>
                 </div>
               )

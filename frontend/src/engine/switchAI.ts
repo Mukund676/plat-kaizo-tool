@@ -133,6 +133,8 @@ function phase1DefensiveScore(aiMon: BattleMon, playerMon: BattleMon): number {
   const scoreA = singleTypeScoreVsAttackerTypes(defType1, playerTypes)
   const scoreB = singleTypeScoreVsAttackerTypes(defType2, playerTypes)
   const combined = scoreA + scoreB
+  // Gen 4 switch scorer overflow bug: "8.0" (quad + quad) is remapped by engine behavior
+  // to sort between 2.0 and 1.5 tiers rather than stay as a strict max.
   return combined === 8 ? 1.75 : combined
 }
 
@@ -176,6 +178,7 @@ function getAssistStyleMoveMaxDamage(
     if (!Array.isArray(rolls) || rolls.length === 0) return 0
     const rawMax = Math.max(...(rolls as number[]))
     if (!Number.isFinite(rawMax) || rawMax <= 0) return 0
+    // Gen 4 overflow behavior: assist-style max roll wraps in byte space.
     return rawMax > 255 ? rawMax % 256 : rawMax
   } catch {
     return 0

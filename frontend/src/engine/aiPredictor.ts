@@ -1305,7 +1305,8 @@ const legacyFlagScorers = [
 ];
 void legacyFlagScorers;
 
-// Keep helper references used by legacy predictor path to satisfy noUnusedLocals.
+// Keep helper references used by the old predictor path for quick regression fallback.
+// They remain intentionally available while this refactor is iterated in UI tests.
 const legacyPredictorHelpers = [
   getMinDamage,
   getMoveAccuracyMultiplier,
@@ -1393,6 +1394,7 @@ export function calculateMoveProbabilities(
   if (aiFlags.basic) {
     for (const mv of moves) {
       if (isMoveImmune(enemyMon, playerMon, mv, field)) {
+        // Basic flag flat immunity punishment from Gen 4 flag script.
         deterministicDeltas[mv].basic -= 10;
       }
     }
@@ -1404,6 +1406,7 @@ export function calculateMoveProbabilities(
     );
     const highest = Math.max(...Object.values(maxByMove), 0);
     for (const mv of moves) {
+      // Evaluate Attack flag: moves below best damage tier get a minor demotion.
       if (maxByMove[mv] < highest) deterministicDeltas[mv].eval_att -= 1;
     }
   }
@@ -1412,6 +1415,7 @@ export function calculateMoveProbabilities(
     for (const mv of moves) {
       const isSetupMove = ATTACK_BOOST_MOVES.has(mv) || SPEED_BOOST_MOVES.has(mv) || DUAL_BOOST_MOVES.has(mv);
       if (isSetupMove && enemyMon.hpPercent >= 100) {
+        // Expert branch rule: full-HP setup branch (50% +2, 50% +0).
         expertEvents.push({ move: mv, chance: 0.5, deltaOnSuccess: 2 });
       }
     }
