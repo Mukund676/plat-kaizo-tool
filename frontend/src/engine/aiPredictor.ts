@@ -64,6 +64,8 @@ export interface FieldState {
   hasPartner?: boolean;
   partnerHpPercent?: number;
   partnerAbility?: string;
+  partnerTypes?: string[];
+  partnerMagnetRise?: boolean;
   partnerStatus?: string;
 }
 
@@ -1108,9 +1110,47 @@ function applyTagStrategyFlag(
   enemyMon: BattleMon,
   playerMon: BattleMon,
   field: Field,
+  fieldState: FieldState,
 ): void {
-  // In singles there is no partner; only the opponent-targeting sub-routines apply.
+  const inDoubles = Boolean(fieldState.isDoubleBattle);
+  const hasPartner = fieldState.hasPartner ?? true;
+  const partnerAbility = fieldState.partnerAbility ?? '';
+  const partnerTypes = (fieldState.partnerTypes ?? []).map((type) => (
+    type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+  ));
+  const partnerHasFlying = partnerTypes.includes('Flying');
+  const partnerHasElectric = partnerTypes.includes('Electric');
+  const partnerIsMonoElectric = partnerTypes.length === 1 && partnerHasElectric;
+  const partnerMagnetRise = Boolean(fieldState.partnerMagnetRise);
+
   for (const mv of moves) {
+    if (inDoubles) {
+      if (mv === 'Skill Swap') {
+        let partnerTargetingDelta = 0;
+        if (!hasPartner) {
+          partnerTargetingDelta -= 30;
+        } else {
+          if (partnerAbility === 'Truant' || partnerAbility === 'Slow Start') {
+            partnerTargetingDelta += 10;
+          }
+          if (enemyMon.ability === 'Levitate' && partnerHasElectric) {
+            partnerTargetingDelta += 1;
+            if (partnerIsMonoElectric) partnerTargetingDelta += 1;
+          }
+          if (partnerTargetingDelta === 0) partnerTargetingDelta -= 30;
+        }
+        scores[mv] += partnerTargetingDelta;
+      }
+
+      if (mv === 'Earthquake' || mv === 'Magnitude') {
+        if (partnerAbility === 'Levitate' || partnerHasFlying || partnerMagnetRise) {
+          scores[mv] += 2;
+        } else {
+          scores[mv] -= 10;
+        }
+      }
+    }
+
     const md = getMoveEntry(mv);
     const isDamaging = md ? md.category !== 'Status' : false;
     if (!isDamaging) continue;
@@ -1342,13 +1382,15 @@ export function predictEnemyMove(
   const field = new Field({
     weather: fieldState.weather as never,
   });
-  const result = calculateMoveProbabilities(playerMon, enemyMon, field, aiFlags);
+  const result = calculateMoveProbabilities(playerMon, enemyMon, field, aiFlags, fieldState);
   return moves.map((mv) => {
     const base = 100;
-    const basicDelta = result.deterministicDeltas[mv]?.basic ?? 0;
-    const evalDelta = result.deterministicDeltas[mv]?.eval_att ?? 0;
+    const deltas = result.deterministicDeltas[mv];
+    const basicDelta = deltas?.basic ?? 0;
+    const evalDelta = deltas?.eval_att ?? 0;
+    const deterministicTotal = deltas ? Object.values(deltas).reduce((sum, value) => sum + value, 0) : 0;
     const expertExpectedDelta = result.expertExpectedDelta[mv] ?? 0;
-    const finalScore = base + basicDelta + evalDelta + expertExpectedDelta;
+    const finalScore = base + deterministicTotal + expertExpectedDelta;
     const probability = result.probabilities[mv] ?? 0;
     return {
       move: mv,
@@ -1366,15 +1408,23 @@ export function predictEnemyMove(
   }).sort((a, b) => b.probability - a.probability);
 }
 
-interface ExpertEvent {
-  move: string;
-  chance: number;
-  deltaOnSuccess: number;
-}
-
 interface CalculateMoveProbabilitiesResult {
   probabilities: MoveProbabilityMap;
-  deterministicDeltas: Record<string, { basic: number; eval_att: number }>;
+  deterministicDeltas: Record<string, {
+    basic: number;
+    eval_att: number;
+    expert: number;
+    setup_first_turn: number;
+    risky: number;
+    damage_prio: number;
+    baton_pass: number;
+    tag_strategy: number;
+    check_hp: number;
+    weather: number;
+    harassment: number;
+    status: number;
+    fog: number;
+  }>;
   expertExpectedDelta: Record<string, number>;
 }
 
@@ -1383,78 +1433,133 @@ export function calculateMoveProbabilities(
   enemyMon: BattleMon,
   field: Field,
   aiFlags: AIFlags = {},
+  fieldState: FieldState = {},
 ): CalculateMoveProbabilitiesResult {
   const moves = enemyMon.moves.filter(Boolean);
   const baseScores: Record<string, number> = Object.fromEntries(moves.map((mv) => [mv, 100]));
-  const deterministicDeltas: Record<string, { basic: number; eval_att: number }> = Object.fromEntries(
-    moves.map((mv) => [mv, { basic: 0, eval_att: 0 }]),
+  const deterministicDeltas: CalculateMoveProbabilitiesResult['deterministicDeltas'] = Object.fromEntries(
+    moves.map((mv) => [mv, {
+      basic: 0,
+      eval_att: 0,
+      expert: 0,
+      setup_first_turn: 0,
+      risky: 0,
+      damage_prio: 0,
+      baton_pass: 0,
+      tag_strategy: 0,
+      check_hp: 0,
+      weather: 0,
+      harassment: 0,
+      status: 0,
+      fog: 0,
+    }]),
   );
-  const expertEvents: ExpertEvent[] = [];
+  const effectiveFieldState: FieldState = {
+    ...fieldState,
+    isDoubleBattle: (fieldState.isDoubleBattle ?? false) || Boolean(aiFlags.double_battle),
+    isTrickRoom: fieldState.isTrickRoom ?? false,
+  };
+
+  const applyAndTrackDelta = (
+    key: keyof CalculateMoveProbabilitiesResult['deterministicDeltas'][string],
+    scorer: () => void,
+  ) => {
+    const before = Object.fromEntries(moves.map((mv) => [mv, baseScores[mv]]));
+    scorer();
+    for (const mv of moves) {
+      deterministicDeltas[mv][key] += baseScores[mv] - before[mv];
+    }
+  };
 
   if (aiFlags.basic) {
-    for (const mv of moves) {
-      if (isMoveImmune(enemyMon, playerMon, mv, field)) {
-        // Basic flag flat immunity punishment from Gen 4 flag script.
-        deterministicDeltas[mv].basic -= 10;
-      }
-    }
+    applyAndTrackDelta('basic', () => {
+      applyBasicFlag(
+        baseScores,
+        moves,
+        enemyMon,
+        playerMon,
+        field,
+        Boolean(effectiveFieldState.isTrickRoom),
+      );
+    });
   }
 
   if (aiFlags.eval_att) {
-    const maxByMove: Record<string, number> = Object.fromEntries(
-      moves.map((mv) => [mv, getMaxDamage(enemyMon, playerMon, mv, field)]),
-    );
-    const highest = Math.max(...Object.values(maxByMove), 0);
-    for (const mv of moves) {
-      // Evaluate Attack flag: moves below best damage tier get a minor demotion.
-      if (maxByMove[mv] < highest) deterministicDeltas[mv].eval_att -= 1;
-    }
+    applyAndTrackDelta('eval_att', () => {
+      applyEvalAttFlag(baseScores, moves, enemyMon, playerMon, field);
+    });
   }
 
   if (aiFlags.expert) {
-    for (const mv of moves) {
-      const isSetupMove = ATTACK_BOOST_MOVES.has(mv) || SPEED_BOOST_MOVES.has(mv) || DUAL_BOOST_MOVES.has(mv);
-      if (isSetupMove && enemyMon.hpPercent >= 100) {
-        // Expert branch rule: full-HP setup branch (50% +2, 50% +0).
-        expertEvents.push({ move: mv, chance: 0.5, deltaOnSuccess: 2 });
-      }
-    }
+    applyAndTrackDelta('expert', () => {
+      applyExpertFlag(baseScores, moves, enemyMon, playerMon, effectiveFieldState);
+    });
   }
 
-  for (const mv of moves) {
-    const d = deterministicDeltas[mv];
-    baseScores[mv] += d.basic + d.eval_att;
+  if (aiFlags.setup_first_turn) {
+    applyAndTrackDelta('setup_first_turn', () => {
+      applySetupFirstTurnFlag(baseScores, moves, effectiveFieldState);
+    });
+  }
+
+  if (aiFlags.risky) {
+    applyAndTrackDelta('risky', () => {
+      applyRiskyFlag(baseScores, moves);
+    });
+  }
+
+  if (aiFlags.damage_prio) {
+    applyAndTrackDelta('damage_prio', () => {
+      applyPrioritizeExtremesFlag(baseScores, moves);
+    });
+  }
+
+  if (aiFlags.baton_pass) {
+    applyAndTrackDelta('baton_pass', () => {
+      applyBatonPassFlag(baseScores, moves, enemyMon, effectiveFieldState);
+    });
+  }
+
+  if (aiFlags.tag_strategy) {
+    applyAndTrackDelta('tag_strategy', () => {
+      applyTagStrategyFlag(baseScores, moves, enemyMon, playerMon, field, effectiveFieldState);
+    });
+  }
+
+  if (aiFlags.check_hp) {
+    applyAndTrackDelta('check_hp', () => {
+      applyCheckHPFlag(baseScores, moves, enemyMon, playerMon);
+    });
+  }
+
+  if (aiFlags.weather) {
+    applyAndTrackDelta('weather', () => {
+      applyWeatherFlag(baseScores, moves, enemyMon, effectiveFieldState);
+    });
+  }
+
+  if (aiFlags.harassment) {
+    applyAndTrackDelta('harassment', () => {
+      applyHarassmentFlag(baseScores, moves);
+    });
+  }
+
+  if (aiFlags.status) {
+    applyAndTrackDelta('status', () => {
+      applyStatusFlag(baseScores, moves, playerMon);
+    });
+  }
+
+  if (effectiveFieldState.hasFog) {
+    applyAndTrackDelta('fog', () => {
+      applyFogModifier(baseScores, moves);
+    });
   }
 
   const probabilities: MoveProbabilityMap = Object.fromEntries(moves.map((mv) => [mv, 0]));
   const expertExpectedDelta: Record<string, number> = Object.fromEntries(moves.map((mv) => [mv, 0]));
-  for (const event of expertEvents) {
-    expertExpectedDelta[event.move] += event.chance * event.deltaOnSuccess;
-  }
-
-  if (expertEvents.length === 0) {
-    const winner = pickWinningMove(moves, baseScores);
-    if (winner) probabilities[winner] = 100;
-    return { probabilities, deterministicDeltas, expertExpectedDelta };
-  }
-
-  const recurse = (idx: number, branchProbability: number, branchScores: Record<string, number>) => {
-    if (idx >= expertEvents.length) {
-      const winner = pickWinningMove(moves, branchScores);
-      if (winner) probabilities[winner] += branchProbability * 100;
-      return;
-    }
-    const event = expertEvents[idx];
-    const failChance = 1 - event.chance;
-    if (failChance > 0) {
-      recurse(idx + 1, branchProbability * failChance, branchScores);
-    }
-    if (event.chance > 0) {
-      const successScores = { ...branchScores, [event.move]: branchScores[event.move] + event.deltaOnSuccess };
-      recurse(idx + 1, branchProbability * event.chance, successScores);
-    }
-  };
-  recurse(0, 1, { ...baseScores });
+  const winner = pickWinningMove(moves, baseScores);
+  if (winner) probabilities[winner] = 100;
 
   for (const mv of moves) {
     probabilities[mv] = parseFloat((probabilities[mv] ?? 0).toFixed(6));

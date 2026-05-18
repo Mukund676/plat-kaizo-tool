@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 import { calculate, Field, Move, Pokemon } from '@smogon/calc'
@@ -120,6 +120,10 @@ interface FieldUiState {
   fog: boolean
   partnerPresent: boolean
   partnerHpPercent: number
+  partnerAbility: string
+  partnerType1: string
+  partnerType2: string
+  partnerMagnetRise: boolean
   partnerStatus: 'unknown' | 'healthy' | 'fainted' | 'statused'
   turnNumber: number
   battleMode: 'singles' | 'doubles'
@@ -477,7 +481,7 @@ function calculateClassicDamage(
   }
 }
 
-function StatMatrix({
+const StatMatrix = memo(function StatMatrix({
   mon,
   speciesData,
   onChange,
@@ -587,9 +591,9 @@ function StatMatrix({
       </tbody>
     </table>
   )
-}
+})
 
-function MoveRows({
+const MoveRows = memo(function MoveRows({
   attacker,
   defender,
   fieldState,
@@ -670,7 +674,7 @@ function MoveRows({
       })}
     </div>
   )
-}
+})
 
 export default function App() {
   const trainerOptions = useMemo(() => normalizeTrainerDb(trainerDb), [])
