@@ -90,6 +90,8 @@ export interface MoveProbability {
   breakdown: string[];
 }
 
+export type MoveProbabilityMap = Record<string, number>;
+
 // ────────────────────────────────────────────────────────────────────────────
 // Move-category sets (sourced from gen4_trainer_ai.md.txt)
 // ────────────────────────────────────────────────────────────────────────────
@@ -1303,6 +1305,18 @@ const legacyFlagScorers = [
 ];
 void legacyFlagScorers;
 
+// Keep helper references used by legacy predictor path to satisfy noUnusedLocals.
+const legacyPredictorHelpers = [
+  getMinDamage,
+  getMoveAccuracyMultiplier,
+  hasMoveDrawback,
+  isStatusMoveRedundant,
+  isSetupRedundant,
+  isStatusOrSetupMove,
+  playerCanLikelyKoThisTurn,
+];
+void legacyPredictorHelpers;
+
 // ────────────────────────────────────────────────────────────────────────────
 // Main export
 // ────────────────────────────────────────────────────────────────────────────
@@ -1324,111 +1338,138 @@ export function predictEnemyMove(
   const moves = enemyMon.moves.filter(Boolean);
   if (moves.length === 0) return [];
 
-  // Initialise all scores to 100
-  const scores: Record<string, number> = {};
-  for (const mv of moves) scores[mv] = 100;
-  const breakdownByMove: Record<string, string[]> = Object.fromEntries(
-    moves.map((mv) => [mv, ['Base Score: 100']]),
-  );
-  const hasAnyAiFlag = Object.values(aiFlags).some(Boolean);
-  if (!hasAnyAiFlag) {
-    for (const mv of moves) breakdownByMove[mv].push('AI Flags: none enabled (heuristic-only scoring)');
-  }
-
   const field = new Field({
     weather: fieldState.weather as never,
   });
-
-  // 1) Zero-weight checks (immunity, status redundancy, setup redundancy)
-  for (const mv of moves) {
-    if (scores[mv] === 0) continue;
-    if (isMoveImmune(enemyMon, playerMon, mv, field)) {
-      scores[mv] = 0;
-      breakdownByMove[mv].push('Zero Weight: immunity');
-      continue;
-    }
-    if (isStatusMoveRedundant(enemyMon, playerMon, mv)) {
-      scores[mv] = 0;
-      breakdownByMove[mv].push('Zero Weight: status redundancy');
-      continue;
-    }
-    if (isSetupRedundant(enemyMon, mv)) {
-      scores[mv] = 0;
-      breakdownByMove[mv].push('Zero Weight: setup redundancy');
-    }
-  }
-
-  const targetCurrentHp = getEstimatedCurrentHp(playerMon);
-  const targetMaxHp = getEstimatedMaxHp(playerMon);
-  const koMoves = new Set<string>();
-  const expectedDamageByMove: Record<string, number> = {};
-
-  // 2) KO check + accuracy tie-breaker
-  for (const mv of moves) {
-    if (scores[mv] === 0) continue;
-    const minDamage = getMinDamage(enemyMon, playerMon, mv, field);
-    const expectedDamage = getDamage(enemyMon, playerMon, mv, field);
-    expectedDamageByMove[mv] = expectedDamage;
-
-    if (minDamage >= targetCurrentHp) {
-      scores[mv] *= 10;
-      breakdownByMove[mv].push('KO Flag: x10');
-      const accuracyMultiplier = getMoveAccuracyMultiplier(mv);
-      scores[mv] *= accuracyMultiplier;
-      breakdownByMove[mv].push(`Accuracy Tie-Breaker: x${accuracyMultiplier.toFixed(2)}`);
-      koMoves.add(mv);
-    }
-  }
-
-  // 3) Drawback avoidance among KO moves
-  if (koMoves.size > 1) {
-    for (const mv of koMoves) {
-      if (!hasMoveDrawback(mv)) continue;
-      scores[mv] *= 0.8;
-      breakdownByMove[mv].push('Drawback Avoidance: x0.80');
-    }
-  }
-
-  // 4) Raw damage scaling when there are no KO moves
-  if (koMoves.size === 0) {
-    for (const mv of moves) {
-      if (scores[mv] === 0) continue;
-      const expectedDamage = expectedDamageByMove[mv] ?? getDamage(enemyMon, playerMon, mv, field);
-      const scale = targetMaxHp > 0 ? Math.max(0, expectedDamage / targetMaxHp) : 0;
-      scores[mv] *= scale;
-      breakdownByMove[mv].push(`Raw Damage Scaling: x${scale.toFixed(3)}`);
-    }
-  }
-
-  // 5) Desperation flag
-  const enemySlower = !enemyIsFaster(enemyMon, playerMon);
-  const playerCanKoEnemy = playerCanLikelyKoThisTurn(playerMon, enemyMon, field);
-  if (enemySlower && playerCanKoEnemy) {
-    for (const mv of moves) {
-      if (scores[mv] === 0) continue;
-      if (!isStatusOrSetupMove(mv)) continue;
-      scores[mv] *= 0.1;
-      breakdownByMove[mv].push('Desperation: x0.10');
-    }
-  }
-
-  // 6) Normalize over non-zero scores only
-  const validMoves = moves.filter((mv) => scores[mv] > 0);
-  if (validMoves.length === 0) return [];
-  const totalScore = validMoves.reduce((sum, mv) => sum + scores[mv], 0);
-  if (totalScore <= 0) return [];
-
-  return validMoves.map((mv) => {
-    const probability = (scores[mv] / totalScore) * 100;
+  const result = calculateMoveProbabilities(playerMon, enemyMon, field, aiFlags);
+  return moves.map((mv) => {
+    const base = 100;
+    const basicDelta = result.deterministicDeltas[mv]?.basic ?? 0;
+    const evalDelta = result.deterministicDeltas[mv]?.eval_att ?? 0;
+    const expertExpectedDelta = result.expertExpectedDelta[mv] ?? 0;
+    const finalScore = base + basicDelta + evalDelta + expertExpectedDelta;
+    const probability = result.probabilities[mv] ?? 0;
     return {
       move: mv,
-      score: parseFloat(scores[mv].toFixed(2)),
+      score: parseFloat(finalScore.toFixed(2)),
       probability: parseFloat(probability.toFixed(1)),
       breakdown: [
-        ...breakdownByMove[mv],
-        `Final Score: ${parseFloat(scores[mv].toFixed(2))}`,
-        `Final Probability: ${parseFloat(probability.toFixed(1))}%`,
+        `Base: ${base}`,
+        `Basic: ${basicDelta >= 0 ? '+' : ''}${basicDelta}`,
+        `Evaluate Attack: ${evalDelta >= 0 ? '+' : ''}${evalDelta}`,
+        `Expert (Expected): ${expertExpectedDelta >= 0 ? '+' : ''}${expertExpectedDelta.toFixed(2)}`,
+        `Final: ${parseFloat(finalScore.toFixed(2))}`,
+        `Win Probability: ${parseFloat(probability.toFixed(1))}%`,
       ],
     };
-  });
+  }).sort((a, b) => b.probability - a.probability);
+}
+
+interface ExpertEvent {
+  move: string;
+  chance: number;
+  deltaOnSuccess: number;
+}
+
+interface CalculateMoveProbabilitiesResult {
+  probabilities: MoveProbabilityMap;
+  deterministicDeltas: Record<string, { basic: number; eval_att: number }>;
+  expertExpectedDelta: Record<string, number>;
+}
+
+export function calculateMoveProbabilities(
+  playerMon: BattleMon,
+  enemyMon: BattleMon,
+  field: Field,
+  aiFlags: AIFlags = {},
+): CalculateMoveProbabilitiesResult {
+  const moves = enemyMon.moves.filter(Boolean);
+  const baseScores: Record<string, number> = Object.fromEntries(moves.map((mv) => [mv, 100]));
+  const deterministicDeltas: Record<string, { basic: number; eval_att: number }> = Object.fromEntries(
+    moves.map((mv) => [mv, { basic: 0, eval_att: 0 }]),
+  );
+  const expertEvents: ExpertEvent[] = [];
+
+  if (aiFlags.basic) {
+    for (const mv of moves) {
+      if (isMoveImmune(enemyMon, playerMon, mv, field)) {
+        deterministicDeltas[mv].basic -= 10;
+      }
+    }
+  }
+
+  if (aiFlags.eval_att) {
+    const maxByMove: Record<string, number> = Object.fromEntries(
+      moves.map((mv) => [mv, getMaxDamage(enemyMon, playerMon, mv, field)]),
+    );
+    const highest = Math.max(...Object.values(maxByMove), 0);
+    for (const mv of moves) {
+      if (maxByMove[mv] < highest) deterministicDeltas[mv].eval_att -= 1;
+    }
+  }
+
+  if (aiFlags.expert) {
+    for (const mv of moves) {
+      const isSetupMove = ATTACK_BOOST_MOVES.has(mv) || SPEED_BOOST_MOVES.has(mv) || DUAL_BOOST_MOVES.has(mv);
+      if (isSetupMove && enemyMon.hpPercent >= 100) {
+        expertEvents.push({ move: mv, chance: 0.5, deltaOnSuccess: 2 });
+      }
+    }
+  }
+
+  for (const mv of moves) {
+    const d = deterministicDeltas[mv];
+    baseScores[mv] += d.basic + d.eval_att;
+  }
+
+  const probabilities: MoveProbabilityMap = Object.fromEntries(moves.map((mv) => [mv, 0]));
+  const expertExpectedDelta: Record<string, number> = Object.fromEntries(moves.map((mv) => [mv, 0]));
+  for (const event of expertEvents) {
+    expertExpectedDelta[event.move] += event.chance * event.deltaOnSuccess;
+  }
+
+  if (expertEvents.length === 0) {
+    const winner = pickWinningMove(moves, baseScores);
+    if (winner) probabilities[winner] = 100;
+    return { probabilities, deterministicDeltas, expertExpectedDelta };
+  }
+
+  const recurse = (idx: number, branchProbability: number, branchScores: Record<string, number>) => {
+    if (idx >= expertEvents.length) {
+      const winner = pickWinningMove(moves, branchScores);
+      if (winner) probabilities[winner] += branchProbability * 100;
+      return;
+    }
+    const event = expertEvents[idx];
+    const failChance = 1 - event.chance;
+    if (failChance > 0) {
+      recurse(idx + 1, branchProbability * failChance, branchScores);
+    }
+    if (event.chance > 0) {
+      const successScores = { ...branchScores, [event.move]: branchScores[event.move] + event.deltaOnSuccess };
+      recurse(idx + 1, branchProbability * event.chance, successScores);
+    }
+  };
+  recurse(0, 1, { ...baseScores });
+
+  for (const mv of moves) {
+    probabilities[mv] = parseFloat((probabilities[mv] ?? 0).toFixed(6));
+  }
+
+  return { probabilities, deterministicDeltas, expertExpectedDelta };
+}
+
+function pickWinningMove(moves: string[], scores: Record<string, number>): string | null {
+  if (moves.length === 0) return null;
+  let winner = moves[0];
+  let topScore = scores[winner] ?? Number.NEGATIVE_INFINITY;
+  for (let i = 1; i < moves.length; i += 1) {
+    const mv = moves[i];
+    const score = scores[mv] ?? Number.NEGATIVE_INFINITY;
+    if (score > topScore) {
+      topScore = score;
+      winner = mv;
+    }
+  }
+  return winner;
 }

@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 import { calculate, Field, Move, Pokemon } from '@smogon/calc'
 import { predictEnemyMove, type AIFlags, type BattleMon, type FieldState } from './engine/aiPredictor'
+import { calculateNextSwitchDecision } from './engine/switchAI'
 import trainerDb from '../../data/trainer_db.json'
 import kaizoRaw from '../../data/kaizo_data.json'
 import './App.css'
@@ -119,7 +120,7 @@ interface FieldUiState {
   fog: boolean
   partnerPresent: boolean
   partnerHpPercent: number
-  partnerStatus: '' | 'healthy' | 'statused'
+  partnerStatus: '' | 'healthy' | 'fainted' | 'statused'
   turnNumber: number
   battleMode: 'singles' | 'doubles'
 }
@@ -213,15 +214,6 @@ const AI_DEBUG_FLAG_LABELS = [
   'Prioritize Effectiveness',
   'Evaluate Attacks',
   'Expert',
-  'Setup First Turn',
-  'Risky Attacks',
-  'Prioritize Damage',
-  'Baton Pass',
-  'Partner',
-  'Prioritize Healing',
-  'Utilize Weather',
-  'Harassment',
-  'Prioritize Status',
 ] as const
 
 function normalizeSpeciesKey(species: string): string {
@@ -414,6 +406,29 @@ function makePokemon(mon: EditableMon): Pokemon {
     status: mon.status || undefined,
     curHP: Math.max(1, mon.hp),
   })
+}
+
+function toBattleMon(
+  mon: EditableMon,
+  speciesData: KaizoPokemon | null,
+  isLastPokemon = false,
+): BattleMon {
+  return {
+    species: mon.species,
+    level: mon.level,
+    nature: mon.nature,
+    ability: mon.ability || undefined,
+    item: mon.item || undefined,
+    hpPercent: mon.maxHp > 0 ? (mon.hp / mon.maxHp) * 100 : 100,
+    moves: mon.moves.filter(Boolean),
+    evs: mon.evs,
+    ivs: mon.ivs,
+    boosts: mon.boosts,
+    status: mon.status || undefined,
+    speed: calcTotalStat(mon, speciesData, 'spe'),
+    types: speciesData ? [speciesData.type1, speciesData.type2].filter(Boolean) as string[] : undefined,
+    isLastPokemon,
+  }
 }
 
 function calculateClassicDamage(
@@ -755,7 +770,7 @@ export default function App() {
   })
 
   const trainer = trainerByKey.get(trainerKey)?.trainer
-  const enemyRoster = trainer?.pokemon ?? []
+  const enemyRoster = useMemo(() => trainer?.pokemon ?? [], [trainer])
 
   const playerSpeciesData = useMemo(
     () => kaizoData.pokemon[normalizeSpeciesKey(playerMon.species)] ?? null,
@@ -816,38 +831,8 @@ export default function App() {
   const aiProbs = useMemo(() => {
     if (!normalizedEnemy.species || !normalizedPlayer.species) return []
 
-    const playerBattleMon: BattleMon = {
-      species: normalizedPlayer.species,
-      level: normalizedPlayer.level,
-      nature: normalizedPlayer.nature,
-      ability: normalizedPlayer.ability || undefined,
-      item: normalizedPlayer.item || undefined,
-      hpPercent: normalizedPlayer.maxHp > 0 ? (normalizedPlayer.hp / normalizedPlayer.maxHp) * 100 : 100,
-      moves: normalizedPlayer.moves.filter(Boolean),
-      evs: normalizedPlayer.evs,
-      ivs: normalizedPlayer.ivs,
-      boosts: normalizedPlayer.boosts,
-      status: normalizedPlayer.status || undefined,
-      speed: calcTotalStat(normalizedPlayer, playerSpeciesData, 'spe'),
-      types: playerSpeciesData ? [playerSpeciesData.type1, playerSpeciesData.type2].filter(Boolean) as string[] : undefined,
-    }
-
-    const enemyBattleMon: BattleMon = {
-      species: normalizedEnemy.species,
-      level: normalizedEnemy.level,
-      nature: normalizedEnemy.nature,
-      ability: normalizedEnemy.ability || undefined,
-      item: normalizedEnemy.item || undefined,
-      hpPercent: normalizedEnemy.maxHp > 0 ? (normalizedEnemy.hp / normalizedEnemy.maxHp) * 100 : 100,
-      moves: normalizedEnemy.moves.filter(Boolean),
-      evs: normalizedEnemy.evs,
-      ivs: normalizedEnemy.ivs,
-      boosts: normalizedEnemy.boosts,
-      status: normalizedEnemy.status || undefined,
-      speed: calcTotalStat(normalizedEnemy, enemySpeciesData, 'spe'),
-      types: enemySpeciesData ? [enemySpeciesData.type1, enemySpeciesData.type2].filter(Boolean) as string[] : undefined,
-      isLastPokemon: enemySlot === enemyRoster.length - 1,
-    }
+    const playerBattleMon = toBattleMon(normalizedPlayer, playerSpeciesData)
+    const enemyBattleMon = toBattleMon(normalizedEnemy, enemySpeciesData, enemySlot === enemyRoster.length - 1)
 
     const trainerFlags = trainer?.ai_flags ?? []
     const effectiveTrainerFlags = toEffectiveTrainerFlags(trainerFlags, aiFlagOverrides)
@@ -895,6 +880,48 @@ export default function App() {
     enemySlot,
     enemyRoster.length,
     aiFlagOverrides,
+  ])
+
+  const switchPrediction = useMemo(() => {
+    if (!normalizedEnemy.species || !normalizedPlayer.species || enemyRoster.length <= 1) return null
+
+    const playerBattleMon = toBattleMon(normalizedPlayer, playerSpeciesData)
+    const deadPokemon = toBattleMon(normalizedEnemy, enemySpeciesData)
+    const aiParty = enemyRoster
+      .map((partyMon, idx) => {
+        if (idx === enemySlot) return null
+        const editable = fromTrainerPokemon(partyMon)
+        const data = kaizoData.pokemon[normalizeSpeciesKey(editable.species)] ?? null
+        return toBattleMon(editable, data, idx === enemyRoster.length - 1)
+      })
+      .filter(Boolean) as BattleMon[]
+
+    const aiFieldState: FieldState = {
+      weather: fieldState.weather,
+      isTrickRoom: fieldState.trickRoom,
+      turnNumber: fieldState.turnNumber,
+      isDoubleBattle: fieldState.battleMode === 'doubles',
+      hasFog: fieldState.fog,
+      hasPartner: fieldState.partnerPresent,
+      partnerHpPercent: fieldState.partnerHpPercent,
+      partnerStatus: fieldState.partnerStatus,
+    }
+    return calculateNextSwitchDecision(deadPokemon, aiParty, playerBattleMon, aiFieldState)
+  }, [
+    normalizedEnemy,
+    normalizedPlayer,
+    enemyRoster,
+    enemySlot,
+    enemySpeciesData,
+    playerSpeciesData,
+    fieldState.weather,
+    fieldState.trickRoom,
+    fieldState.turnNumber,
+    fieldState.battleMode,
+    fieldState.fog,
+    fieldState.partnerPresent,
+    fieldState.partnerHpPercent,
+    fieldState.partnerStatus,
   ])
 
   return (
@@ -1103,6 +1130,7 @@ export default function App() {
             >
               <option value="">Unknown</option>
               <option value="healthy">Healthy</option>
+              <option value="fainted">Fainted</option>
               <option value="statused">Statused</option>
             </select>
           </label>
@@ -1260,8 +1288,22 @@ export default function App() {
           <div className="enemy-move-slot-list">
             {normalizedEnemy.moves.map((move, idx) => (
               <div key={`${move}-${idx}`} className="enemy-move-slot-row">
-                <span className="enemy-slot-label">Slot {idx + 1}:</span>
-                <span>{move || '(No Move)'}</span>
+                {(() => {
+                  const meta = moveMeta(move)
+                  const bp = normalizedEnemy.moveBpOverrides[idx] || (meta?.power ?? 0)
+                  return (
+                    <>
+                      <span className="enemy-slot-label">Slot {idx + 1}:</span>
+                      <span>{move || '(No Move)'}</span>
+                      <span className="enemy-slot-pipe">|</span>
+                      <span>{bp || 0}</span>
+                      <span className="enemy-slot-pipe">|</span>
+                      <span>{meta?.type ?? '—'}</span>
+                      <span className="enemy-slot-pipe">|</span>
+                      <span>{meta?.category ?? '—'}</span>
+                    </>
+                  )
+                })()}
               </div>
             ))}
           </div>
@@ -1303,6 +1345,24 @@ export default function App() {
           </div>
         ) : (
           <p className="hint">No AI prediction available yet.</p>
+        )}
+
+        <h3>Next Switch Prediction</h3>
+        {switchPrediction && switchPrediction.evaluations.length > 0 ? (
+          <div className="switch-prediction-list">
+            {switchPrediction.evaluations.map((row) => {
+              const isWinner = row.partyIndex === switchPrediction.selectedPartyIndex
+              return (
+                <div key={`${row.species}-${row.partyIndex}`} className={isWinner ? 'switch-row winner' : 'switch-row'}>
+                  <span className="switch-species">{row.species}</span>
+                  <span>Phase 1 Score: {row.phase1Score == null ? '—' : `${row.phase1Score.toFixed(2)}x`}</span>
+                  <span>Phase 2 Max Damage Roll: {row.phase2MaxDamageRoll} HP</span>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="hint">No switch prediction available.</p>
         )}
       </section>
     </div>
