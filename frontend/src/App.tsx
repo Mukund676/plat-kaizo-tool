@@ -353,10 +353,12 @@ function normalizeTrainerDb(raw: unknown): TrainerOption[] {
   if (!raw || typeof raw !== 'object') return []
   const grouped = raw as TrainerDbBySplit
   const out: TrainerOption[] = []
+  const normalizeSplit = (split: string) => split.replace(/\s+Split$/i, '').trim()
   for (const [split, trainers] of Object.entries(grouped)) {
+    const normalizedSplit = normalizeSplit(split)
     trainers.forEach((trainer, idx) => {
       if (trainer?.pokemon?.length) {
-        out.push({ key: `${split}::${idx}`, split, trainer })
+        out.push({ key: `${split}::${idx}`, split: normalizedSplit, trainer })
       }
     })
   }
