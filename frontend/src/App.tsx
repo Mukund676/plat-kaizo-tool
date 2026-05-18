@@ -50,6 +50,9 @@ interface TrainerEntry {
 type TrainerDbBySplit = Record<string, TrainerEntry[]>
 type TrainerOption = { key: string; split: string; trainer: TrainerEntry }
 
+const TRAINER_SPLITS = ['Roark', 'Gardenia', 'Fantina', 'Maylene', 'Wake', 'Byron', 'Candice', 'Volkner', 'Galactic', 'Elite Four'] as const
+const DEFAULT_SPLIT = TRAINER_SPLITS[0]
+
 interface KaizoPokemon {
   id: number
   hp: number
@@ -350,14 +353,20 @@ function normalizeTrainerDb(raw: unknown): TrainerOption[] {
   if (!raw || typeof raw !== 'object') return []
   const grouped = raw as TrainerDbBySplit
   const out: TrainerOption[] = []
+  const normalizeSplit = (split: string) => split.replace(/\s+Split$/i, '').trim()
   for (const [split, trainers] of Object.entries(grouped)) {
+    const normalizedSplit = normalizeSplit(split)
     trainers.forEach((trainer, idx) => {
       if (trainer?.pokemon?.length) {
-        out.push({ key: `${split}::${idx}`, split, trainer })
+        out.push({ key: `${split}::${idx}`, split: normalizedSplit, trainer })
       }
     })
   }
   return out
+}
+
+function getFirstTrainerKeyForSplit(trainers: TrainerOption[], split: string): string {
+  return trainers.find((trainer) => trainer.split === split)?.key ?? ''
 }
 
 function moveMeta(moveName: string): KaizoMove | null {
@@ -384,6 +393,13 @@ function toEffectiveTrainerFlags(rawFlags: string[], overrides: Record<string, b
 function sanitizeBp(overrideBp: number, moveName: string): number {
   if (overrideBp > 0) return overrideBp
   return moveMeta(moveName)?.power ?? 0
+}
+
+function getHpStatusClass(currentHp: number, maxHp: number): string {
+  const hpRatio = maxHp > 0 ? currentHp / maxHp : 1
+  if (hpRatio < 0.2) return 'hp-critical'
+  if (hpRatio < 0.5) return 'hp-warning'
+  return 'hp-healthy'
 }
 
 function makePokemon(mon: EditableMon): Pokemon {
@@ -583,6 +599,7 @@ function MoveRows({
     <div className="moveset-block">
       {mon.moves.map((moveName, idx) => {
         const meta = moveMeta(moveName)
+        const isActive = selectedForMainDamage && selectedMoveIndex === idx
         const rowDamage = calculateClassicDamage(
           attacker,
           defender,
@@ -591,12 +608,12 @@ function MoveRows({
           fieldState,
         )
         return (
-          <div key={idx} className="move-row">
+          <div key={idx} className={isActive ? 'move-row selected' : 'move-row'}>
             <input
               className="move-radio"
               type="radio"
               name={radioName}
-              checked={selectedForMainDamage && selectedMoveIndex === idx}
+              checked={isActive}
               onChange={() => onSelectMoveIndex(idx)}
             />
 
@@ -629,6 +646,7 @@ function MoveRows({
               }}
             />
 
+            <span className="move-name-display">{moveName || '(No Move)'}</span>
             <span className="move-meta move-type">{meta?.type ?? '—'}</span>
             <span className="move-category">{meta?.category ?? '—'}</span>
             <span className="move-inline-damage">{rowDamage?.range ?? '—'}</span>
@@ -642,13 +660,6 @@ function MoveRows({
 export default function App() {
   const trainerOptions = useMemo(() => normalizeTrainerDb(trainerDb), [])
   const trainerByKey = useMemo(() => new Map(trainerOptions.map((t) => [t.key, t])), [trainerOptions])
-  const groupedTrainers = useMemo(() => {
-    return trainerOptions.reduce<Record<string, TrainerOption[]>>((acc, t) => {
-      if (!acc[t.split]) acc[t.split] = []
-      acc[t.split].push(t)
-      return acc
-    }, {})
-  }, [trainerOptions])
 
   const [partyMons, setPartyMons] = useState<PartyMon[]>([])
   const [boxMons, setBoxMons] = useState<PartyMon[]>([])
@@ -656,17 +667,42 @@ export default function App() {
   const [uploading, setUploading] = useState(false)
 
   const [playerMon, setPlayerMon] = useState<EditableMon>(createDefaultMon())
-  const [trainerKey, setTrainerKey] = useState(trainerOptions[0]?.key ?? '')
+  const [activeSplit, setActiveSplit] = useState<string>(DEFAULT_SPLIT)
+  const [trainerKey, setTrainerKey] = useState(() => getFirstTrainerKeyForSplit(trainerOptions, DEFAULT_SPLIT))
   const [enemySlot, setEnemySlot] = useState(0)
   const [aiFlagOverrides, setAiFlagOverrides] = useState<Record<string, boolean>>({})
   const [mainDamageSelection, setMainDamageSelection] = useState<{ side: DamageSourceSide; idx: number }>({
     side: 'player',
     idx: 0,
   })
+  const filteredTrainers = useMemo(
+    () => trainerOptions.filter((trainer) => trainer.split === activeSplit),
+    [trainerOptions, activeSplit],
+  )
 
   const initialTrainer = trainerByKey.get(trainerKey)?.trainer
   const initialEnemy = initialTrainer?.pokemon[0] ? fromTrainerPokemon(initialTrainer.pokemon[0]) : createDefaultMon()
   const [enemyMon, setEnemyMon] = useState<EditableMon>(initialEnemy)
+
+  const selectTrainer = useCallback((key: string) => {
+    if (!key) {
+      setTrainerKey('')
+      setAiFlagOverrides({})
+      setEnemySlot(0)
+      setEnemyMon(createDefaultMon())
+      return
+    }
+
+    const nextTrainer = trainerByKey.get(key)?.trainer
+    setTrainerKey(key)
+    setAiFlagOverrides({})
+    setEnemySlot(0)
+    if (nextTrainer?.pokemon?.[0]) {
+      setEnemyMon(fromTrainerPokemon(nextTrainer.pokemon[0]))
+      return
+    }
+    setEnemyMon(createDefaultMon())
+  }, [trainerByKey])
 
   const [fieldState, setFieldState] = useState<FieldUiState>({
     weather: '',
@@ -745,6 +781,8 @@ export default function App() {
     maxHp: enemyMaxHp,
     hp: clamp(enemyMon.hp, 0, enemyMaxHp || 1),
   }), [enemyMon, enemyMaxHp])
+  const playerHpClass = getHpStatusClass(normalizedPlayer.hp, normalizedPlayer.maxHp)
+  const enemyHpClass = getHpStatusClass(normalizedEnemy.hp, normalizedEnemy.maxHp)
 
   const playerAbilityOptions = useMemo(() => {
     const options = [playerSpeciesData?.ability1, playerSpeciesData?.ability2].filter(Boolean) as string[]
@@ -966,6 +1004,7 @@ export default function App() {
 
             <label>Current HP
               <input
+                className={playerHpClass}
                 type="number"
                 min={0}
                 max={normalizedPlayer.maxHp}
@@ -976,6 +1015,7 @@ export default function App() {
 
             <label>Max HP
               <input
+                className={playerHpClass}
                 type="number"
                 min={1}
                 value={normalizedPlayer.maxHp}
@@ -1074,25 +1114,34 @@ export default function App() {
             <h2>Enemy Boss</h2>
           </div>
 
+          <div className="split-button-row">
+            {TRAINER_SPLITS.map((split) => (
+              <button
+                key={split}
+                type="button"
+                className={activeSplit === split ? 'split-toggle active' : 'split-toggle'}
+                onClick={() => {
+                  setActiveSplit(split)
+                  const firstSplitTrainerKey = getFirstTrainerKeyForSplit(trainerOptions, split)
+                  selectTrainer(firstSplitTrainerKey)
+                }}
+              >
+                {split}
+              </button>
+            ))}
+          </div>
+
           <label className="boss-picker">Boss Trainer
             <select
               value={trainerKey}
+              disabled={filteredTrainers.length === 0}
               onChange={(e) => {
-                const key = e.target.value
-                const nextTrainer = trainerByKey.get(key)?.trainer
-                setTrainerKey(key)
-                setAiFlagOverrides({})
-                setEnemySlot(0)
-                if (nextTrainer?.pokemon?.[0]) {
-                  setEnemyMon(fromTrainerPokemon(nextTrainer.pokemon[0]))
-                }
+                selectTrainer(e.target.value)
               }}
             >
-              {Object.entries(groupedTrainers).map(([split, options]) => (
-                <optgroup key={split} label={split}>
-                  {options.map((opt) => <option key={opt.key} value={opt.key}>{opt.trainer.name}</option>)}
-                </optgroup>
-              ))}
+              {filteredTrainers.length === 0
+                ? <option value="">No trainers in this split</option>
+                : filteredTrainers.map((opt) => <option key={opt.key} value={opt.key}>{opt.trainer.name}</option>)}
             </select>
           </label>
 
@@ -1186,6 +1235,7 @@ export default function App() {
 
             <label>Current HP
               <input
+                className={enemyHpClass}
                 type="number"
                 min={0}
                 max={normalizedEnemy.maxHp}
@@ -1196,6 +1246,7 @@ export default function App() {
 
             <label>Max HP
               <input
+                className={enemyHpClass}
                 type="number"
                 min={1}
                 value={normalizedEnemy.maxHp}
