@@ -1284,8 +1284,8 @@ function applyFogModifier(
   }
 }
 
-// Keep references so legacy per-flag scorers remain available for future reintroduction
-// without triggering unused-symbol lint failures after the Phase 3 heuristic refactor.
+// Keep these references so TypeScript noUnusedLocals remains satisfied while legacy
+// per-flag scorers stay in file for comparison/regression fallback purposes.
 const legacyFlagScorers = [
   applyBasicFlag,
   applyEvalAttFlag,
@@ -1313,7 +1313,7 @@ void legacyFlagScorers;
  * @param playerMon  The player's active Pokémon
  * @param enemyMon   The enemy's active Pokémon
  * @param fieldState Current field conditions
- * @param aiFlags    AI behaviour flags assigned to this trainer
+ * @param aiFlags    AI behaviour flags assigned to this trainer (currently informational)
  */
 export function predictEnemyMove(
   playerMon: BattleMon,
@@ -1330,12 +1330,14 @@ export function predictEnemyMove(
   const breakdownByMove: Record<string, string[]> = Object.fromEntries(
     moves.map((mv) => [mv, ['Base Score: 100']]),
   );
+  const hasAnyAiFlag = Object.values(aiFlags).some(Boolean);
+  if (!hasAnyAiFlag) {
+    for (const mv of moves) breakdownByMove[mv].push('AI Flags: none enabled (heuristic-only scoring)');
+  }
 
   const field = new Field({
     weather: fieldState.weather as never,
   });
-  // aiFlags remains part of the public predictor API for compatibility with existing callers.
-  void aiFlags;
 
   // 1) Zero-weight checks (immunity, status redundancy, setup redundancy)
   for (const mv of moves) {
