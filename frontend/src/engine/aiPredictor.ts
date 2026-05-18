@@ -423,6 +423,7 @@ function getMinDamage(
   }
 }
 
+/** Moves we treat as drawback-heavy (recoil and/or self-stat-drop) for KO tie-break penalties. */
 const DRAWBACK_MOVES = new Set([
   'Brave Bird', 'Double-Edge', 'Flare Blitz', 'Head Smash', 'Submission', 'Take Down', 'Volt Tackle', 'Wood Hammer',
   'Close Combat', 'Superpower', 'Draco Meteor', 'Leaf Storm', 'Overheat', 'Psycho Boost', 'Hammer Arm',
@@ -1283,6 +1284,8 @@ function applyFogModifier(
   }
 }
 
+// Keep references so legacy per-flag scorers remain available for future reintroduction
+// without triggering unused-symbol lint failures after the Phase 3 heuristic refactor.
 const legacyFlagScorers = [
   applyBasicFlag,
   applyEvalAttFlag,
@@ -1331,8 +1334,8 @@ export function predictEnemyMove(
   const field = new Field({
     weather: fieldState.weather as never,
   });
+  // aiFlags remains part of the public predictor API for compatibility with existing callers.
   void aiFlags;
-  void fieldState;
 
   // 1) Zero-weight checks (immunity, status redundancy, setup redundancy)
   for (const mv of moves) {
