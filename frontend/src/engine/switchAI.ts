@@ -107,7 +107,7 @@ function getSeCheckMultiplier(
 function monHasSuperEffectiveMove(attacker: BattleMon, defender: BattleMon): boolean {
   for (const moveName of attacker.moves.filter(Boolean)) {
     const md = moveEntry(moveName)
-    if (!md || md.category === 'Status') continue
+    if (!md) continue
     const moveType = normalizeType(String(md.type ?? ''))
     if (!moveType) continue
     if (getSeCheckMultiplier(moveType, defender, attacker.ability) > 1) {
@@ -117,21 +117,21 @@ function monHasSuperEffectiveMove(attacker: BattleMon, defender: BattleMon): boo
   return false
 }
 
-function singleTypeScoreVsAttackerTypes(defenderType: TypeName, attackerTypes: TypeName[]): number {
-  const [atk1, atk2] = attackerTypes.length >= 2 ? attackerTypes : [attackerTypes[0], attackerTypes[0]]
-  const m1 = TYPE_CHART[atk1]?.[defenderType] ?? 1
-  const m2 = TYPE_CHART[atk2]?.[defenderType] ?? 1
+function singleTypeScoreVsDefenderTypes(attackerType: TypeName, defenderTypes: TypeName[]): number {
+  const [def1, def2] = defenderTypes.length >= 2 ? defenderTypes : [defenderTypes[0], defenderTypes[0]]
+  const m1 = TYPE_CHART[attackerType]?.[def1] ?? 1
+  const m2 = TYPE_CHART[attackerType]?.[def2] ?? 1
   return m1 * m2
 }
 
-function phase1DefensiveScore(aiMon: BattleMon, playerMon: BattleMon): number {
+function phase1OffensiveTypingScore(aiMon: BattleMon, playerMon: BattleMon): number {
   const aiTypes = getMonTypes(aiMon)
   const playerTypes = getMonTypes(playerMon)
   if (aiTypes.length === 0 || playerTypes.length === 0) return 2
 
-  const [defType1, defType2] = aiTypes.length >= 2 ? aiTypes : [aiTypes[0], aiTypes[0]]
-  const scoreA = singleTypeScoreVsAttackerTypes(defType1, playerTypes)
-  const scoreB = singleTypeScoreVsAttackerTypes(defType2, playerTypes)
+  const [atkType1, atkType2] = aiTypes.length >= 2 ? aiTypes : [aiTypes[0], aiTypes[0]]
+  const scoreA = singleTypeScoreVsDefenderTypes(atkType1, playerTypes)
+  const scoreB = singleTypeScoreVsDefenderTypes(atkType2, playerTypes)
   const combined = scoreA + scoreB
   // Gen 4 switch scorer overflow bug: "8.0" (quad + quad) is remapped by engine behavior
   // to sort between 2.0 and 1.5 tiers rather than stay as a strict max.
@@ -178,7 +178,8 @@ function getAssistStyleMoveMaxDamage(
     if (!Array.isArray(rolls) || rolls.length === 0) return 0
     const rawMax = Math.max(...(rolls as number[]))
     if (!Number.isFinite(rawMax) || rawMax <= 0) return 0
-    // Gen 4 overflow behavior: assist-style max roll wraps in byte space.
+    // Gen 4 overflow behavior: assist-style max roll wraps in 8-bit byte space.
+    // Engine stores this intermediate in a single byte, so values >255 roll over via modulo 256.
     return rawMax > 255 ? rawMax % 256 : rawMax
   } catch {
     return 0
@@ -209,18 +210,19 @@ export function calculateNextSwitchDecision(
     return {
       partyIndex: idx,
       species: mon.species,
-      phase1Score: hasAnySeMove ? phase1DefensiveScore(mon, playerPokemon) : null,
+      phase1Score: hasAnySeMove ? phase1OffensiveTypingScore(mon, playerPokemon) : null,
       phase2MaxDamageRoll,
       hasSuperEffectiveMove: monHasSuperEffectiveMove(mon, playerPokemon),
     }
   })
 
   if (hasAnySeMove) {
-    const winner = evaluations.reduce((best, next) => {
+    const seCandidates = evaluations.filter((entry) => entry.hasSuperEffectiveMove)
+    const winner = seCandidates.reduce((best, next) => {
       if (!best) return next
-      const bestScore = best.phase1Score ?? Number.POSITIVE_INFINITY
-      const nextScore = next.phase1Score ?? Number.POSITIVE_INFINITY
-      if (nextScore < bestScore) return next
+      const bestScore = best.phase1Score ?? Number.NEGATIVE_INFINITY
+      const nextScore = next.phase1Score ?? Number.NEGATIVE_INFINITY
+      if (nextScore > bestScore) return next
       if (nextScore === bestScore && next.partyIndex < best.partyIndex) return next
       return best
     }, null as SwitchEvaluation | null)

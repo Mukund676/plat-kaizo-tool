@@ -770,7 +770,7 @@ export default function App() {
   })
 
   const trainer = trainerByKey.get(trainerKey)?.trainer
-  const enemyRoster = useMemo(() => trainer?.pokemon ?? [], [trainer])
+  const enemyRoster = useMemo(() => trainer?.pokemon ?? [], [trainer?.pokemon])
 
   const playerSpeciesData = useMemo(
     () => kaizoData.pokemon[normalizeSpeciesKey(playerMon.species)] ?? null,
