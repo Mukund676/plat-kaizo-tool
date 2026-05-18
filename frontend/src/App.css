@@ -427,11 +427,40 @@ input::placeholder {
 .enemy-move-slot-row {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
   color: var(--text);
 }
 
 .enemy-slot-label {
   color: var(--muted);
+}
+
+.enemy-slot-pipe {
+  color: var(--muted);
+}
+
+.switch-prediction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.switch-row {
+  border: 1px solid var(--line);
+  background: #111827;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+}
+
+.switch-row.winner {
+  border-color: #22c55e;
+  background: rgba(22, 163, 74, 0.2);
+  font-weight: 700;
+}
+
+.switch-species {
+  font-size: 12px;
 }
 
 @media (max-width: 1200px) {
