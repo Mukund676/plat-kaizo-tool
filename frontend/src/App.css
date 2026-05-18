@@ -292,9 +292,17 @@ input::placeholder {
 
 .move-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 62px 82px 82px minmax(140px, 1fr);
+  grid-template-columns: 18px minmax(0, 1fr) minmax(120px, 1fr) 62px 82px 82px minmax(140px, 1fr);
   gap: 4px;
   align-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.move-row.selected {
+  border-color: #60a5fa;
+  background: rgba(37, 99, 235, 0.15);
 }
 
 .move-meta,
@@ -306,6 +314,16 @@ input::placeholder {
   color: #e2e8f0;
 }
 
+.move-name-display {
+  border: 1px solid var(--line);
+  padding: 2px 4px;
+  background: #0b1220;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .move-inline-damage {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -313,6 +331,22 @@ input::placeholder {
 
 .move-radio {
   width: auto !important;
+}
+
+.hp-healthy {
+  color: #f8fafc;
+}
+
+.hp-warning {
+  background: #7c2d12 !important;
+  border-color: #f59e0b !important;
+  color: #fff7ed !important;
+}
+
+.hp-critical {
+  background: #7f1d1d !important;
+  border-color: #ef4444 !important;
+  color: #fee2e2 !important;
 }
 
 .output-hub {

@@ -395,6 +395,13 @@ function sanitizeBp(overrideBp: number, moveName: string): number {
   return moveMeta(moveName)?.power ?? 0
 }
 
+function getHpStatusClass(currentHp: number, maxHp: number): string {
+  const hpRatio = maxHp > 0 ? currentHp / maxHp : 1
+  if (hpRatio < 0.2) return 'hp-critical'
+  if (hpRatio < 0.5) return 'hp-warning'
+  return 'hp-healthy'
+}
+
 function makePokemon(mon: EditableMon): Pokemon {
   return new Pokemon(4, mon.species, {
     level: mon.level,
@@ -592,6 +599,7 @@ function MoveRows({
     <div className="moveset-block">
       {mon.moves.map((moveName, idx) => {
         const meta = moveMeta(moveName)
+        const isActive = selectedForMainDamage && selectedMoveIndex === idx
         const rowDamage = calculateClassicDamage(
           attacker,
           defender,
@@ -600,12 +608,12 @@ function MoveRows({
           fieldState,
         )
         return (
-          <div key={idx} className="move-row">
+          <div key={idx} className={isActive ? 'move-row selected' : 'move-row'}>
             <input
               className="move-radio"
               type="radio"
               name={radioName}
-              checked={selectedForMainDamage && selectedMoveIndex === idx}
+              checked={isActive}
               onChange={() => onSelectMoveIndex(idx)}
             />
 
@@ -638,6 +646,7 @@ function MoveRows({
               }}
             />
 
+            <span className="move-name-display">{moveName || '(No Move)'}</span>
             <span className="move-meta move-type">{meta?.type ?? '—'}</span>
             <span className="move-category">{meta?.category ?? '—'}</span>
             <span className="move-inline-damage">{rowDamage?.range ?? '—'}</span>
@@ -772,6 +781,8 @@ export default function App() {
     maxHp: enemyMaxHp,
     hp: clamp(enemyMon.hp, 0, enemyMaxHp || 1),
   }), [enemyMon, enemyMaxHp])
+  const playerHpClass = getHpStatusClass(normalizedPlayer.hp, normalizedPlayer.maxHp)
+  const enemyHpClass = getHpStatusClass(normalizedEnemy.hp, normalizedEnemy.maxHp)
 
   const playerAbilityOptions = useMemo(() => {
     const options = [playerSpeciesData?.ability1, playerSpeciesData?.ability2].filter(Boolean) as string[]
@@ -993,6 +1004,7 @@ export default function App() {
 
             <label>Current HP
               <input
+                className={playerHpClass}
                 type="number"
                 min={0}
                 max={normalizedPlayer.maxHp}
@@ -1003,6 +1015,7 @@ export default function App() {
 
             <label>Max HP
               <input
+                className={playerHpClass}
                 type="number"
                 min={1}
                 value={normalizedPlayer.maxHp}
@@ -1222,6 +1235,7 @@ export default function App() {
 
             <label>Current HP
               <input
+                className={enemyHpClass}
                 type="number"
                 min={0}
                 max={normalizedEnemy.maxHp}
@@ -1232,6 +1246,7 @@ export default function App() {
 
             <label>Max HP
               <input
+                className={enemyHpClass}
                 type="number"
                 min={1}
                 value={normalizedEnemy.maxHp}
