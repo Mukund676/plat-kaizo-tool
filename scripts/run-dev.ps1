@@ -56,6 +56,18 @@ if (-not (Test-Path $frontendPkg)) {
     exit 1
 }
 
+$backendApp = Join-Path $RepoRoot 'backend\app.py'
+if (-not (Test-Path $backendApp)) {
+    Write-Error "Missing backend app entrypoint: $backendApp"
+    exit 1
+}
+
+$shellExe = if (Check-Command pwsh) { 'pwsh' } elseif (Check-Command powershell) { 'powershell' } else { $null }
+if (-not $shellExe) {
+    Write-Error "No PowerShell host found for launching child windows (expected 'pwsh' or 'powershell')."
+    exit 1
+}
+
 if (-not (Test-Path (Join-Path $RepoRoot '.venv'))) {
     Write-Host "Creating virtual environment .venv..."
     python -m venv .venv
@@ -77,11 +89,11 @@ if (-not (Test-Path $data1) -or -not (Test-Path $data2)) {
 
 Write-Host "Starting backend in a new PowerShell window..."
 $backendCmd = "cd '$RepoRoot'; . '$RepoRoot\\.venv\\Scripts\\Activate.ps1'; python backend\\app.py"
-Start-Process -FilePath powershell -ArgumentList "-NoExit","-Command",$backendCmd
+Start-Process -FilePath $shellExe -ArgumentList "-NoExit","-Command",$backendCmd
 
 Write-Host "Starting frontend in a new PowerShell window (will run npm install then dev server)..."
-$frontendCmd = "cd '$RepoRoot\\frontend'; npm install; npm run dev"
-Start-Process -FilePath powershell -ArgumentList "-NoExit","-Command",$frontendCmd
+$frontendCmd = "cd '$RepoRoot\\frontend'; if (Test-Path 'package-lock.json') { npm ci } else { npm install }; npm run dev"
+Start-Process -FilePath $shellExe -ArgumentList "-NoExit","-Command",$frontendCmd
 
 Write-Host ""
 Write-Host "================================" -ForegroundColor Green
