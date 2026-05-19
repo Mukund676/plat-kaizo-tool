@@ -1348,6 +1348,7 @@ void legacyFlagScorers;
 // Keep helper references used by the old predictor path for quick regression fallback.
 // They remain intentionally available while this refactor is iterated in UI tests.
 const legacyPredictorHelpers = [
+  isMoveImmune,
   getMinDamage,
   getMoveAccuracyMultiplier,
   hasMoveDrawback,

@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 import { calculate, Field, Move, Pokemon } from '@smogon/calc'
@@ -181,6 +181,7 @@ const NATURE_BY_PAIR: Record<string, string> = Object.fromEntries(
 const kaizoData = kaizoRaw as KaizoData
 const speciesOptions = Object.keys(kaizoData.pokemon).sort()
 const moveOptions = Object.keys(kaizoData.moves).sort()
+const TYPE_OPTIONS = ['', 'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting', 'Poison', 'Ground', 'Flying', 'Psychic', 'Bug', 'Rock', 'Ghost', 'Dragon', 'Dark', 'Steel'] as const
 
 const AI_FLAG_KEY_MAP: Record<string, keyof AIFlags> = {
   basic: 'basic',
@@ -676,6 +677,159 @@ const MoveRows = memo(function MoveRows({
   )
 })
 
+const FieldConditionsPanel = memo(function FieldConditionsPanel({
+  fieldState,
+  setFieldState,
+}: {
+  fieldState: FieldUiState
+  setFieldState: Dispatch<SetStateAction<FieldUiState>>
+}) {
+  return (
+    <section className="field-card">
+      <h3>Field Conditions</h3>
+
+      <label>Weather
+        <select value={fieldState.weather} onChange={(e) => setFieldState((prev) => ({ ...prev, weather: e.target.value as FieldUiState['weather'] }))}>
+          <option value="">None</option>
+          <option value="sun">Sun</option>
+          <option value="rain">Rain</option>
+          <option value="sand">Sand</option>
+          <option value="hail">Hail</option>
+        </select>
+      </label>
+
+      <label>Terrain
+        <select value={fieldState.terrain} onChange={(e) => setFieldState((prev) => ({ ...prev, terrain: e.target.value as FieldUiState['terrain'] }))}>
+          <option value="">None</option>
+          <option value="electric">Electric</option>
+          <option value="grassy">Grassy</option>
+          <option value="misty">Misty</option>
+          <option value="psychic">Psychic</option>
+        </select>
+      </label>
+
+      <label>Spikes
+        <select value={fieldState.spikes} onChange={(e) => setFieldState((prev) => ({ ...prev, spikes: Number(e.target.value) as 0 | 1 | 2 | 3 }))}>
+          <option value={0}>0</option>
+          <option value={1}>1</option>
+          <option value={2}>2</option>
+          <option value={3}>3</option>
+        </select>
+      </label>
+
+      <label>Turn
+        <input
+          type="number"
+          min={1}
+          value={fieldState.turnNumber}
+          onChange={(e) => setFieldState((prev) => ({ ...prev, turnNumber: Math.max(1, Number(e.target.value) || 1) }))}
+        />
+      </label>
+
+      <label className="check-row"><input type="checkbox" checked={fieldState.gravity} onChange={(e) => setFieldState((prev) => ({ ...prev, gravity: e.target.checked }))} />Gravity</label>
+      <label className="check-row"><input type="checkbox" checked={fieldState.stealthRock} onChange={(e) => setFieldState((prev) => ({ ...prev, stealthRock: e.target.checked }))} />Stealth Rock</label>
+      <label className="check-row"><input type="checkbox" checked={fieldState.reflect} onChange={(e) => setFieldState((prev) => ({ ...prev, reflect: e.target.checked }))} />Reflect</label>
+      <label className="check-row"><input type="checkbox" checked={fieldState.lightScreen} onChange={(e) => setFieldState((prev) => ({ ...prev, lightScreen: e.target.checked }))} />Light Screen</label>
+      <label className="check-row"><input type="checkbox" checked={fieldState.trickRoom} onChange={(e) => setFieldState((prev) => ({ ...prev, trickRoom: e.target.checked }))} />Trick Room</label>
+      <label className="check-row"><input type="checkbox" checked={fieldState.fog} onChange={(e) => setFieldState((prev) => ({ ...prev, fog: e.target.checked }))} />Fog</label>
+      <label className="check-row"><input type="checkbox" checked={fieldState.partnerPresent} onChange={(e) => setFieldState((prev) => ({ ...prev, partnerPresent: e.target.checked }))} />Partner Present</label>
+      <label className="check-row"><input type="checkbox" checked={fieldState.partnerMagnetRise} onChange={(e) => setFieldState((prev) => ({ ...prev, partnerMagnetRise: e.target.checked }))} />Partner Magnet Rise</label>
+      <label>Partner HP %
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={fieldState.partnerHpPercent}
+          onChange={(e) => setFieldState((prev) => ({ ...prev, partnerHpPercent: clamp(Number(e.target.value) || 0, 0, 100) }))}
+        />
+      </label>
+      <label>Partner Ability
+        <input
+          value={fieldState.partnerAbility}
+          onChange={(e) => setFieldState((prev) => ({ ...prev, partnerAbility: e.target.value }))}
+        />
+      </label>
+      <label>Partner Type 1
+        <select value={fieldState.partnerType1} onChange={(e) => setFieldState((prev) => ({ ...prev, partnerType1: e.target.value }))}>
+          {TYPE_OPTIONS.map((type) => <option key={type} value={type}>{type || 'None'}</option>)}
+        </select>
+      </label>
+      <label>Partner Type 2
+        <select value={fieldState.partnerType2} onChange={(e) => setFieldState((prev) => ({ ...prev, partnerType2: e.target.value }))}>
+          {TYPE_OPTIONS.map((type) => <option key={type} value={type}>{type || 'None'}</option>)}
+        </select>
+      </label>
+      <label>Partner Status
+        <select
+          value={fieldState.partnerStatus}
+          onChange={(e) => setFieldState((prev) => ({ ...prev, partnerStatus: e.target.value as FieldUiState['partnerStatus'] }))}
+        >
+          <option value="unknown">Unknown</option>
+          <option value="healthy">Healthy</option>
+          <option value="fainted">Fainted</option>
+          <option value="statused">Statused</option>
+        </select>
+      </label>
+    </section>
+  )
+})
+
+const OutputHub = memo(function OutputHub({
+  primaryDamage,
+  aiProbs,
+  switchPrediction,
+}: {
+  primaryDamage: CalcResult | null
+  aiProbs: ReturnType<typeof predictEnemyMove>
+  switchPrediction: ReturnType<typeof calculateNextSwitchDecision> | null
+}) {
+  return (
+    <section className="output-hub">
+      <h3>Main Damage String</h3>
+      <p className="damage-string">
+        {primaryDamage?.description ?? 'Select species and moves to generate a Smogon-style damage string.'}
+      </p>
+      {primaryDamage && <p className="damage-range">{primaryDamage.range}</p>}
+
+      <h3>AI Prediction</h3>
+      {aiProbs.length > 0 ? (
+        <div className="ai-bars">
+          {aiProbs.map((row) => (
+            <div key={row.move} className="ai-bar-row" title={row.breakdown.join('\n')}>
+              <span className="ai-bar-label">{row.move}</span>
+              <div className="ai-bar-track">
+                <div className="ai-bar-fill" style={{ width: `${row.probability}%` }} />
+              </div>
+              <span className="ai-bar-score">{row.score.toFixed(1)}</span>
+              <span className="ai-bar-value">{row.probability.toFixed(1)}%</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="hint">No AI prediction available yet.</p>
+      )}
+
+      <h3>Next Switch Prediction</h3>
+      {switchPrediction && switchPrediction.evaluations.length > 0 ? (
+        <div className="switch-prediction-list">
+          {switchPrediction.evaluations.map((row) => {
+            const isWinner = row.partyIndex === switchPrediction.selectedPartyIndex
+            return (
+              <div key={`${row.species}-${row.partyIndex}`} className={isWinner ? 'switch-row winner' : 'switch-row'}>
+                <span className="switch-species">{row.species}</span>
+                <span>Phase 1 Score: {row.phase1Score === null ? '—' : `${row.phase1Score.toFixed(2)}x`}</span>
+                <span>Phase 2 Max Damage Roll: {row.phase2MaxDamageRoll} HP</span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="hint">No switch prediction available.</p>
+      )}
+    </section>
+  )
+})
+
 export default function App() {
   const trainerOptions = useMemo(() => normalizeTrainerDb(trainerDb), [])
   const trainerByKey = useMemo(() => new Map(trainerOptions.map((t) => [t.key, t])), [trainerOptions])
@@ -735,6 +889,10 @@ export default function App() {
     fog: false,
     partnerPresent: false,
     partnerHpPercent: 100,
+    partnerAbility: '',
+    partnerType1: '',
+    partnerType2: '',
+    partnerMagnetRise: false,
     partnerStatus: 'unknown',
     turnNumber: 1,
     battleMode: 'singles',
@@ -855,6 +1013,9 @@ export default function App() {
       hasFog: fieldState.fog,
       hasPartner: fieldState.partnerPresent,
       partnerHpPercent: fieldState.partnerHpPercent,
+      partnerAbility: fieldState.partnerAbility || undefined,
+      partnerTypes: [fieldState.partnerType1, fieldState.partnerType2].filter(Boolean),
+      partnerMagnetRise: fieldState.partnerMagnetRise,
       partnerStatus: fieldState.partnerStatus,
     }
     if (!Number.isFinite(playerBattleMon.hpPercent) || !Number.isFinite(enemyBattleMon.hpPercent)) {
@@ -878,6 +1039,10 @@ export default function App() {
     fieldState.fog,
     fieldState.partnerPresent,
     fieldState.partnerHpPercent,
+    fieldState.partnerAbility,
+    fieldState.partnerType1,
+    fieldState.partnerType2,
+    fieldState.partnerMagnetRise,
     fieldState.partnerStatus,
     fieldState.turnNumber,
     fieldState.battleMode,
@@ -908,6 +1073,9 @@ export default function App() {
       hasFog: fieldState.fog,
       hasPartner: fieldState.partnerPresent,
       partnerHpPercent: fieldState.partnerHpPercent,
+      partnerAbility: fieldState.partnerAbility || undefined,
+      partnerTypes: [fieldState.partnerType1, fieldState.partnerType2].filter(Boolean),
+      partnerMagnetRise: fieldState.partnerMagnetRise,
       partnerStatus: fieldState.partnerStatus,
     }
     return calculateNextSwitchDecision(deadPokemon, aiParty, playerBattleMon, aiFieldState)
@@ -925,6 +1093,10 @@ export default function App() {
     fieldState.fog,
     fieldState.partnerPresent,
     fieldState.partnerHpPercent,
+    fieldState.partnerAbility,
+    fieldState.partnerType1,
+    fieldState.partnerType2,
+    fieldState.partnerMagnetRise,
     fieldState.partnerStatus,
   ])
 
@@ -1070,75 +1242,7 @@ export default function App() {
           />
         </section>
 
-        <section className="field-card">
-          <h3>Field Conditions</h3>
-
-          <label>Weather
-            <select value={fieldState.weather} onChange={(e) => setFieldState((prev) => ({ ...prev, weather: e.target.value as FieldUiState['weather'] }))}>
-              <option value="">None</option>
-              <option value="sun">Sun</option>
-              <option value="rain">Rain</option>
-              <option value="sand">Sand</option>
-              <option value="hail">Hail</option>
-            </select>
-          </label>
-
-          <label>Terrain
-            <select value={fieldState.terrain} onChange={(e) => setFieldState((prev) => ({ ...prev, terrain: e.target.value as FieldUiState['terrain'] }))}>
-              <option value="">None</option>
-              <option value="electric">Electric</option>
-              <option value="grassy">Grassy</option>
-              <option value="misty">Misty</option>
-              <option value="psychic">Psychic</option>
-            </select>
-          </label>
-
-          <label>Spikes
-            <select value={fieldState.spikes} onChange={(e) => setFieldState((prev) => ({ ...prev, spikes: Number(e.target.value) as 0 | 1 | 2 | 3 }))}>
-              <option value={0}>0</option>
-              <option value={1}>1</option>
-              <option value={2}>2</option>
-              <option value={3}>3</option>
-            </select>
-          </label>
-
-          <label>Turn
-            <input
-              type="number"
-              min={1}
-              value={fieldState.turnNumber}
-              onChange={(e) => setFieldState((prev) => ({ ...prev, turnNumber: Math.max(1, Number(e.target.value) || 1) }))}
-            />
-          </label>
-
-          <label className="check-row"><input type="checkbox" checked={fieldState.gravity} onChange={(e) => setFieldState((prev) => ({ ...prev, gravity: e.target.checked }))} />Gravity</label>
-          <label className="check-row"><input type="checkbox" checked={fieldState.stealthRock} onChange={(e) => setFieldState((prev) => ({ ...prev, stealthRock: e.target.checked }))} />Stealth Rock</label>
-          <label className="check-row"><input type="checkbox" checked={fieldState.reflect} onChange={(e) => setFieldState((prev) => ({ ...prev, reflect: e.target.checked }))} />Reflect</label>
-          <label className="check-row"><input type="checkbox" checked={fieldState.lightScreen} onChange={(e) => setFieldState((prev) => ({ ...prev, lightScreen: e.target.checked }))} />Light Screen</label>
-          <label className="check-row"><input type="checkbox" checked={fieldState.trickRoom} onChange={(e) => setFieldState((prev) => ({ ...prev, trickRoom: e.target.checked }))} />Trick Room</label>
-          <label className="check-row"><input type="checkbox" checked={fieldState.fog} onChange={(e) => setFieldState((prev) => ({ ...prev, fog: e.target.checked }))} />Fog</label>
-          <label className="check-row"><input type="checkbox" checked={fieldState.partnerPresent} onChange={(e) => setFieldState((prev) => ({ ...prev, partnerPresent: e.target.checked }))} />Partner Present</label>
-          <label>Partner HP %
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={fieldState.partnerHpPercent}
-              onChange={(e) => setFieldState((prev) => ({ ...prev, partnerHpPercent: clamp(Number(e.target.value) || 0, 0, 100) }))}
-            />
-          </label>
-          <label>Partner Status
-            <select
-              value={fieldState.partnerStatus}
-              onChange={(e) => setFieldState((prev) => ({ ...prev, partnerStatus: e.target.value as FieldUiState['partnerStatus'] }))}
-            >
-              <option value="unknown">Unknown</option>
-              <option value="healthy">Healthy</option>
-              <option value="fainted">Fainted</option>
-              <option value="statused">Statused</option>
-            </select>
-          </label>
-        </section>
+        <FieldConditionsPanel fieldState={fieldState} setFieldState={setFieldState} />
 
         <section className="calc-card">
           <div className="card-header">
@@ -1326,49 +1430,7 @@ export default function App() {
         </section>
       </main>
 
-      <section className="output-hub">
-        <h3>Main Damage String</h3>
-        <p className="damage-string">
-          {primaryDamage?.description ?? 'Select species and moves to generate a Smogon-style damage string.'}
-        </p>
-        {primaryDamage && <p className="damage-range">{primaryDamage.range}</p>}
-
-        <h3>AI Prediction</h3>
-        {aiProbs.length > 0 ? (
-          <div className="ai-bars">
-            {aiProbs.map((row) => (
-              <div key={row.move} className="ai-bar-row" title={row.breakdown.join('\n')}>
-                <span className="ai-bar-label">{row.move}</span>
-                <div className="ai-bar-track">
-                  <div className="ai-bar-fill" style={{ width: `${row.probability}%` }} />
-                </div>
-                <span className="ai-bar-score">{row.score.toFixed(1)}</span>
-                <span className="ai-bar-value">{row.probability.toFixed(1)}%</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="hint">No AI prediction available yet.</p>
-        )}
-
-        <h3>Next Switch Prediction</h3>
-        {switchPrediction && switchPrediction.evaluations.length > 0 ? (
-          <div className="switch-prediction-list">
-            {switchPrediction.evaluations.map((row) => {
-              const isWinner = row.partyIndex === switchPrediction.selectedPartyIndex
-              return (
-                <div key={`${row.species}-${row.partyIndex}`} className={isWinner ? 'switch-row winner' : 'switch-row'}>
-                  <span className="switch-species">{row.species}</span>
-                  <span>Phase 1 Score: {row.phase1Score === null ? '—' : `${row.phase1Score.toFixed(2)}x`}</span>
-                  <span>Phase 2 Max Damage Roll: {row.phase2MaxDamageRoll} HP</span>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <p className="hint">No switch prediction available.</p>
-        )}
-      </section>
+      <OutputHub primaryDamage={primaryDamage} aiProbs={aiProbs} switchPrediction={switchPrediction} />
     </div>
   )
 }
