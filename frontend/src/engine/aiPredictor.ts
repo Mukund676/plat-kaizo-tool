@@ -1113,7 +1113,7 @@ function applyTagStrategyFlag(
   fieldState: FieldState,
 ): void {
   const inDoubles = Boolean(fieldState.isDoubleBattle);
-  const hasPartner = fieldState.hasPartner ?? true;
+  const hasPartner = fieldState.hasPartner ?? false;
   const partnerAbility = fieldState.partnerAbility ?? '';
   const partnerTypes = (fieldState.partnerTypes ?? []).map((type) => (
     type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
