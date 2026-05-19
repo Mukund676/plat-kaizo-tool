@@ -647,11 +647,13 @@ function hasSuperEffectiveDamagingMove(attackerMoves: string[], defender: Battle
   return false;
 }
 
-/** Is the enemy faster than the player? Returns true if enemy speed > player speed. */
-function enemyIsFaster(enemy: BattleMon, player: BattleMon): boolean {
+/** Is the enemy faster than the player under normal speed order or Trick Room. */
+function enemyIsFaster(enemy: BattleMon, player: BattleMon, isTrickRoom: boolean): boolean {
   const eSpe = enemy.speed ?? 0;
   const pSpe = player.speed ?? 0;
-  if (eSpe !== 0 || pSpe !== 0) return eSpe > pSpe;
+  if (eSpe !== 0 || pSpe !== 0) {
+    return isTrickRoom ? eSpe < pSpe : eSpe > pSpe;
+  }
   return false; // unknown: treat as tied
 }
 
@@ -666,11 +668,16 @@ function applyBasicFlag(
   enemyMon: BattleMon,
   playerMon: BattleMon,
   field: Field,
+  fieldState: FieldState,
   isTrickRoom: boolean,
 ): void {
   for (const mv of moves) {
     const md = getMoveEntry(mv);
     const moveType: string | undefined = md?.type as string | undefined;
+
+    if (mv === 'Fake Out' && (fieldState.turnNumber ?? 1) !== 1) {
+      scores[mv] -= 10;
+    }
 
     // ── 1. Type immunity ─────────────────────────────────────────────────
     if (md && md.category !== 'Status') {
@@ -826,7 +833,7 @@ function applyEvalAttFlag(
     }
 
     // Priority +1 moves: +6 for KO (skip SE check)
-    if (isKO && PRIORITY_PLUS_ONE_MOVES.has(mv)) {
+    if (isKO && PRIORITY_PLUS_ONE_MOVES.has(mv) && mv !== 'Fake Out') {
       scores[mv] += 6;
       continue;
     }
@@ -855,9 +862,13 @@ function applyExpertFlag(
   playerMon: BattleMon,
   fieldState: FieldState,
 ): void {
-  const eFaster = enemyIsFaster(enemyMon, playerMon);
+  const eFaster = enemyIsFaster(enemyMon, playerMon, fieldState.isTrickRoom ?? false);
 
   for (const mv of moves) {
+    if (mv === 'Fake Out' && (fieldState.turnNumber ?? 1) === 1) {
+      scores[mv] += 2;
+    }
+
     // Sleep moves: if enemy knows Dream Eater/Nightmare → 50% +1
     if (SLEEP_MOVES.has(mv)) {
       if (moves.includes('Dream Eater') || moves.includes('Nightmare')) {
@@ -1480,6 +1491,7 @@ export function calculateMoveProbabilities(
         enemyMon,
         playerMon,
         field,
+        effectiveFieldState,
         Boolean(effectiveFieldState.isTrickRoom),
       );
     });

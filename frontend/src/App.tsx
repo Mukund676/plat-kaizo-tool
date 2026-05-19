@@ -98,7 +98,7 @@ interface EditableMon {
   ivs: StatSpread
   boosts: BoostSpread
   moves: string[]
-  moveBpOverrides: number[]
+  moveBpOverrides: Array<number | undefined>
 }
 
 interface CalcResult {
@@ -304,7 +304,7 @@ function createDefaultMon(): EditableMon {
     ivs: defaultIvs,
     boosts: defaultBoosts,
     moves: ['', '', '', ''],
-    moveBpOverrides: [0, 0, 0, 0],
+    moveBpOverrides: [undefined, undefined, undefined, undefined],
   }
 }
 
@@ -324,7 +324,7 @@ function fromImportedMon(mon: PartyMon): EditableMon {
     ivs: toSpread(mon.ivs, defaultIvs, 31),
     boosts: defaultBoosts,
     moves: [...mon.moves, '', '', '', ''].slice(0, 4),
-    moveBpOverrides: [0, 0, 0, 0],
+    moveBpOverrides: [undefined, undefined, undefined, undefined],
   }
 }
 
@@ -342,7 +342,7 @@ function fromTrainerPokemon(mon: TrainerPokemon): EditableMon {
     ivs: defaultIvs,
     boosts: defaultBoosts,
     moves: [...mon.moves, '', '', '', ''].slice(0, 4),
-    moveBpOverrides: [0, 0, 0, 0],
+    moveBpOverrides: [undefined, undefined, undefined, undefined],
   }
 }
 
@@ -387,8 +387,8 @@ function toEffectiveTrainerFlags(rawFlags: string[], overrides: Record<string, b
   })
 }
 
-function sanitizeBp(overrideBp: number, moveName: string): number {
-  if (overrideBp > 0) return overrideBp
+function sanitizeBp(overrideBp: number | undefined, moveName: string): number {
+  if (overrideBp !== undefined) return overrideBp
   return moveMeta(moveName)?.power ?? 0
 }
 
@@ -440,7 +440,7 @@ function calculateClassicDamage(
   attacker: EditableMon,
   defender: EditableMon,
   moveName: string,
-  moveBpOverride: number,
+  moveBpOverride: number | undefined,
   fieldState: FieldUiState,
 ): CalcResult | null {
   if (!moveName) return null
@@ -548,7 +548,7 @@ const StatMatrix = memo(function StatMatrix({
               <td>
                 <input
                   type="radio"
-                  name={`nature-plus-${stat}-${mon.species || 'mon'}`}
+                  name={`nature-plus-${mon.species || 'mon'}`}
                   checked={!isHp && natureEffect.plus === stat && natureEffect.plus !== natureEffect.minus}
                   disabled={isHp}
                   onChange={() => !isHp && onChange(setNatureFromRadio(mon, 'plus', stat as BoostKey))}
@@ -557,7 +557,7 @@ const StatMatrix = memo(function StatMatrix({
               <td>
                 <input
                   type="radio"
-                  name={`nature-minus-${stat}-${mon.species || 'mon'}`}
+                  name={`nature-minus-${mon.species || 'mon'}`}
                   checked={!isHp && natureEffect.minus === stat && natureEffect.plus !== natureEffect.minus}
                   disabled={isHp}
                   onChange={() => !isHp && onChange(setNatureFromRadio(mon, 'minus', stat as BoostKey))}
@@ -624,7 +624,7 @@ const MovesetPanel = memo(function MovesetPanel({
           attacker,
           defender,
           moveName,
-          attacker.moveBpOverrides[idx] ?? 0,
+          attacker.moveBpOverrides[idx],
           fieldState,
         )
         return (
@@ -657,7 +657,7 @@ const MovesetPanel = memo(function MovesetPanel({
               type="number"
               min={0}
               max={300}
-              value={mon.moveBpOverrides[idx] || (meta?.power ?? 0)}
+              value={mon.moveBpOverrides[idx] ?? (meta?.power ?? 0)}
               onChange={(e) => {
                 const value = Number(e.target.value)
                 const nextBp = [...mon.moveBpOverrides]
@@ -904,42 +904,6 @@ const PokemonPanel = memo(function PokemonPanel({
   )
 })
 
-function useAIPrediction({
-  normalizedEnemy,
-  normalizedPlayer,
-  playerSpeciesData,
-  enemySpeciesData,
-  trainer,
-  enemySlot,
-  enemyRoster,
-  fieldState,
-  aiFlagOverrides,
-}: {
-  normalizedEnemy: EditableMon
-  normalizedPlayer: EditableMon
-  playerSpeciesData: KaizoPokemon | null
-  enemySpeciesData: KaizoPokemon | null
-  trainer: TrainerEntry | undefined
-  enemySlot: number
-  enemyRoster: TrainerPokemon[]
-  fieldState: FieldUiState
-  aiFlagOverrides: Record<string, boolean>
-}) {
-  const { aiProbs, switchPrediction } = useAIPrediction({
-    normalizedEnemy,
-    normalizedPlayer,
-    playerSpeciesData,
-    enemySpeciesData,
-    trainer,
-    enemySlot,
-    enemyRoster,
-    fieldState,
-    aiFlagOverrides,
-  })
-
-  return { aiProbs, switchPrediction }
-}
-
 export default function App() {
   const trainerOptions = useMemo(() => normalizeTrainerDb(trainerDb), [])
   const trainerByKey = useMemo(() => new Map(trainerOptions.map((t) => [t.key, t])), [trainerOptions])
@@ -1095,7 +1059,7 @@ export default function App() {
       attacker,
       defender,
       attacker.moves[moveIdx],
-      attacker.moveBpOverrides[moveIdx] ?? 0,
+      attacker.moveBpOverrides[moveIdx],
       fieldState,
     )
   }, [mainDamageSelection, normalizedPlayer, normalizedEnemy, fieldState])
@@ -1481,7 +1445,7 @@ export default function App() {
               <div key={`${move}-${idx}`} className="enemy-move-slot-row">
                 {(() => {
                   const meta = moveMeta(move)
-                  const bp = normalizedEnemy.moveBpOverrides[idx] || (meta?.power ?? 0)
+                  const bp = normalizedEnemy.moveBpOverrides[idx] ?? (meta?.power ?? 0)
                   return (
                     <>
                       <span className="enemy-slot-label">Slot {idx + 1}:</span>
