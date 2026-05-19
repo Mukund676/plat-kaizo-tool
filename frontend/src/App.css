@@ -236,7 +236,7 @@ input::placeholder {
 }
 
 .ai-flag-row .flag-pill:nth-child(4n + 1) { background: #2563eb; }
-.ai-flag-row .flag-pill:nth-child(4n + 2) { background: #7c3aed; }
+.ai-flag-row .flag-pill:nth-child(4n + 2) { background: #1e40af; }
 .ai-flag-row .flag-pill:nth-child(4n + 3) { background: #ea580c; }
 .ai-flag-row .flag-pill:nth-child(4n + 4) { background: #059669; }
 
@@ -278,6 +278,7 @@ input::placeholder {
   font-weight: 700;
   color: #f8fafc;
   background: #1f2937;
+  font-variant-numeric: tabular-nums;
 }
 
 .stage-na {
@@ -398,7 +399,18 @@ input::placeholder {
 
 .ai-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
+}
+
+.ai-bar-fill.low {
+  background: linear-gradient(90deg, #475569, #64748b);
+}
+
+.ai-bar-fill.mid {
+  background: linear-gradient(90deg, #1d4ed8, #60a5fa);
+}
+
+.ai-bar-fill.high {
+  background: linear-gradient(90deg, #0284c7, #22d3ee);
 }
 
 .ai-bar-score,

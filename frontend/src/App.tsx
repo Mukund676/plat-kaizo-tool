@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import { memo, useCallback, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 import { calculate, Field, Move, Pokemon } from '@smogon/calc'
@@ -594,7 +594,7 @@ const StatMatrix = memo(function StatMatrix({
   )
 })
 
-const MoveRows = memo(function MoveRows({
+const MovesetPanel = memo(function MovesetPanel({
   attacker,
   defender,
   fieldState,
@@ -677,7 +677,7 @@ const MoveRows = memo(function MoveRows({
   )
 })
 
-const FieldConditionsPanel = memo(function FieldConditionsPanel({
+const FieldPanel = memo(function FieldPanel({
   fieldState,
   setFieldState,
 }: {
@@ -798,7 +798,10 @@ const OutputHub = memo(function OutputHub({
             <div key={row.move} className="ai-bar-row" title={row.breakdown.join('\n')}>
               <span className="ai-bar-label">{row.move}</span>
               <div className="ai-bar-track">
-                <div className="ai-bar-fill" style={{ width: `${row.probability}%` }} />
+                <div
+                  className={`ai-bar-fill ${row.probability >= 60 ? 'high' : row.probability >= 30 ? 'mid' : 'low'}`}
+                  style={{ width: `${row.probability}%` }}
+                />
               </div>
               <span className="ai-bar-score">{row.score.toFixed(1)}</span>
               <span className="ai-bar-value">{row.probability.toFixed(1)}%</span>
@@ -829,6 +832,113 @@ const OutputHub = memo(function OutputHub({
     </section>
   )
 })
+
+const TopBar = memo(function TopBar({
+  getRootProps,
+  getInputProps,
+  uploading,
+  isDragActive,
+  uploadError,
+  battleMode,
+  setFieldState,
+}: {
+  getRootProps: ReturnType<typeof useDropzone>['getRootProps']
+  getInputProps: ReturnType<typeof useDropzone>['getInputProps']
+  uploading: boolean
+  isDragActive: boolean
+  uploadError: string | null
+  battleMode: FieldUiState['battleMode']
+  setFieldState: Dispatch<SetStateAction<FieldUiState>>
+}) {
+  return (
+    <header className="topbar">
+      <div className="topbar-left">
+        <button className="upload-btn" type="button" {...getRootProps()}>
+          <input {...getInputProps()} />
+          {uploading ? 'Importing…' : isDragActive ? 'Drop save file…' : 'Import Save File (.sav)'}
+        </button>
+        {uploadError && <span className="topbar-error">{uploadError}</span>}
+      </div>
+      <div className="topbar-toggle">
+        <span>Battle Mode:</span>
+        <label>
+          <input
+            type="radio"
+            checked={battleMode === 'singles'}
+            onChange={() => setFieldState((prev) => ({ ...prev, battleMode: 'singles' }))}
+          />
+          Singles
+        </label>
+        <label>
+          <input
+            type="radio"
+            checked={battleMode === 'doubles'}
+            onChange={() => setFieldState((prev) => ({ ...prev, battleMode: 'doubles' }))}
+          />
+          Doubles
+        </label>
+      </div>
+    </header>
+  )
+})
+
+const PokemonPanel = memo(function PokemonPanel({
+  title,
+  spriteSpecies,
+  spriteFallback,
+  children,
+}: {
+  title: string
+  spriteSpecies: string
+  spriteFallback: string
+  children: ReactNode
+}) {
+  return (
+    <section className="calc-card">
+      <div className="card-header">
+        <img className="sprite" src={getSpriteUrl(spriteSpecies || spriteFallback)} alt={`${title} sprite`} />
+        <h2>{title}</h2>
+      </div>
+      {children}
+    </section>
+  )
+})
+
+function useAIPrediction({
+  normalizedEnemy,
+  normalizedPlayer,
+  playerSpeciesData,
+  enemySpeciesData,
+  trainer,
+  enemySlot,
+  enemyRoster,
+  fieldState,
+  aiFlagOverrides,
+}: {
+  normalizedEnemy: EditableMon
+  normalizedPlayer: EditableMon
+  playerSpeciesData: KaizoPokemon | null
+  enemySpeciesData: KaizoPokemon | null
+  trainer: TrainerEntry | undefined
+  enemySlot: number
+  enemyRoster: TrainerPokemon[]
+  fieldState: FieldUiState
+  aiFlagOverrides: Record<string, boolean>
+}) {
+  const { aiProbs, switchPrediction } = useAIPrediction({
+    normalizedEnemy,
+    normalizedPlayer,
+    playerSpeciesData,
+    enemySpeciesData,
+    trainer,
+    enemySlot,
+    enemyRoster,
+    fieldState,
+    aiFlagOverrides,
+  })
+
+  return { aiProbs, switchPrediction }
+}
 
 export default function App() {
   const trainerOptions = useMemo(() => normalizeTrainerDb(trainerDb), [])
@@ -1102,41 +1212,18 @@ export default function App() {
 
   return (
     <div className="classic-app">
-      <header className="topbar">
-        <div className="topbar-left">
-          <button className="upload-btn" type="button" {...getRootProps()}>
-            <input {...getInputProps()} />
-            {uploading ? 'Importing…' : isDragActive ? 'Drop save file…' : 'Import Save File (.sav)'}
-          </button>
-          {uploadError && <span className="topbar-error">{uploadError}</span>}
-        </div>
-        <div className="topbar-toggle">
-          <span>Battle Mode:</span>
-          <label>
-            <input
-              type="radio"
-              checked={fieldState.battleMode === 'singles'}
-              onChange={() => setFieldState((prev) => ({ ...prev, battleMode: 'singles' }))}
-            />
-            Singles
-          </label>
-          <label>
-            <input
-              type="radio"
-              checked={fieldState.battleMode === 'doubles'}
-              onChange={() => setFieldState((prev) => ({ ...prev, battleMode: 'doubles' }))}
-            />
-            Doubles
-          </label>
-        </div>
-      </header>
+      <TopBar
+        getRootProps={getRootProps}
+        getInputProps={getInputProps}
+        uploading={uploading}
+        isDragActive={isDragActive}
+        uploadError={uploadError}
+        battleMode={fieldState.battleMode}
+        setFieldState={setFieldState}
+      />
 
       <main className="main-grid">
-        <section className="calc-card">
-          <div className="card-header">
-            <img className="sprite" src={getSpriteUrl(normalizedPlayer.species || 'pikachu')} alt="player sprite" />
-            <h2>Player Pokémon</h2>
-          </div>
+        <PokemonPanel title="Player Pokémon" spriteSpecies={normalizedPlayer.species} spriteFallback="pikachu">
 
           {importChoices.length > 0 && (
             <div className="import-strip">
@@ -1229,7 +1316,7 @@ export default function App() {
 
           <StatMatrix mon={normalizedPlayer} speciesData={playerSpeciesData} onChange={setPlayerMon} />
 
-          <MoveRows
+          <MovesetPanel
             attacker={normalizedPlayer}
             defender={normalizedEnemy}
             fieldState={fieldState}
@@ -1240,15 +1327,11 @@ export default function App() {
             onSelectMoveIndex={(idx) => setMainDamageSelection({ side: 'player', idx })}
             radioName="main-damage-player"
           />
-        </section>
+        </PokemonPanel>
 
-        <FieldConditionsPanel fieldState={fieldState} setFieldState={setFieldState} />
+        <FieldPanel fieldState={fieldState} setFieldState={setFieldState} />
 
-        <section className="calc-card">
-          <div className="card-header">
-            <img className="sprite" src={getSpriteUrl(normalizedEnemy.species || 'gengar')} alt="enemy sprite" />
-            <h2>Enemy Boss</h2>
-          </div>
+        <PokemonPanel title="Enemy Boss" spriteSpecies={normalizedEnemy.species} spriteFallback="gengar">
 
           <div className="split-button-row">
             {TRAINER_SPLITS.map((split) => (
@@ -1416,7 +1499,7 @@ export default function App() {
             ))}
           </div>
 
-          <MoveRows
+          <MovesetPanel
             attacker={normalizedEnemy}
             defender={normalizedPlayer}
             fieldState={fieldState}
@@ -1427,7 +1510,7 @@ export default function App() {
             onSelectMoveIndex={(idx) => setMainDamageSelection({ side: 'enemy', idx })}
             radioName="main-damage-enemy"
           />
-        </section>
+        </PokemonPanel>
       </main>
 
       <OutputHub primaryDamage={primaryDamage} aiProbs={aiProbs} switchPrediction={switchPrediction} />
