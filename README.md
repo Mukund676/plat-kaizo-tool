@@ -1,106 +1,100 @@
-# plat-kaizo-tool
+# Platinum Kaizo VGC Calculator & AI Predictor
 
-Platinum Kaizo team parser + battle helper app.
+A mathematically precise, full-stack Damage Calculator and AI Move Predictor built specifically for the **Pokémon Platinum Kaizo** ROM hack.
 
-- **Backend**: Flask API that parses Gen 4 `.sav` files and returns party/box data
-- **Frontend**: React + Vite UI that uploads saves and renders calculator/router views
+Unlike standard damage calculators, this tool features an authentic, meticulously reverse-engineered Generation 4 AI Engine. It doesn't just tell you how much damage a move will do—it runs 10,000-iteration Monte Carlo simulations to predict *exactly* what the opponent's AI will do, taking into account specific Gen 4 engine quirks, AI flags, and Kaizo-specific boss behavior.
 
-## Requirements
+## 🌟 Core Features
 
-- Python 3.11 or 3.12
-- Node.js 20+ and npm
-- .NET runtime (required by `pythonnet` to load `backend/PKHeX.Core.dll`)
+### 🧠 Authentic Gen 4 AI Engine
 
-Python 3.13+ is not supported here because `pythonnet` does not build cleanly in this project setup.
+* **Monte Carlo Probabilities:** Instead of flawed "expected value" math, the AI engine runs 10,000 simulated turns per calculation. It rolls RNG against active AI Flags (e.g., *Evaluate Attack*, *Expert*, *Risky*) to give you mathematically perfect probability percentages for the opponent's next move.
+* **Flawless Switch AI:** Replicates the complex, two-phase Generation 4 switch-in logic. It correctly handles Phase 1 (Super Effective scoring) and Phase 2 (Highest Damaging Move), fully preserving authentic engine anomalies like the **8-bit damage overflow bug** and the +8 score wrap-around bug.
+* **Kaizo-Specific Logic:** Fully implements exact AI behaviors, including Turn 1 weather setups, priority KO bonuses (+4 score), and strict "Fake Out" rules (scoring +2 on Turn 1 via Expert flag, and penalized by -10 on subsequent turns).
+* **Doubles Support:** Includes comprehensive *Tag Strategy* logic for VGC formats, allowing the AI to correctly evaluate partner interactions (e.g., avoiding Earthquake if the partner lacks Levitate, or utilizing Skill Swap on Truant/Slow Start).
 
-This README shows commands you can run from the repository root. Replace `python` with the full path to your Python executable if needed.
+### 📊 Automated Database Compilation
 
-**Quickstart — Windows (PowerShell)**
+* **Direct from the Docs:** A robust Python backend pipeline (`build_database.py`) parses the official *Platinum Kaizo Docs.xlsx* spreadsheet directly.
+* **Dynamic Trainer Injection:** Automatically maps complex boss splits (e.g., Roark, Cynthia) to their internal RAW TRAINER DATA flags, handling edge cases, generic name overwrites, and missing boolean values to ensure perfect AI profiles.
 
-1. Open PowerShell in the repository root (where this README is).
+### 🖥️ High-Performance UI
 
-2. Create and activate a virtual environment:
+* **React + Vite Dashboard:** A highly responsive, component-based dashboard utilizing a unified Slate/Blue professional aesthetic.
+* **Decoupled Architecture:** Built to prevent global re-renders. Stat matrices, move selections, and field conditions operate independently, ensuring a lag-free experience even during massive calculations.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r backend/requirements.txt
-```
+---
 
-3. Generate required data files (run once after cloning or when spreadsheet data changes):
+## 🏗️ Project Architecture
 
-```powershell
-python backend\build_database.py
-```
+This is a monorepo consisting of a Python backend and a React/TypeScript frontend.
 
-This produces/updates `data/kaizo_data.json` and `data/trainer_db.json`.
+* **`/backend`**: Houses the `build_database.py` script for parsing the Kaizo Excel document into JSON datasets (`kaizo_data.json`, `trainer_db.json`). Also includes `parse_save.py` which utilizes `PKHeX.Core.dll` for reading `.sav` files to directly import your team state.
+* **`/frontend`**: A Vite + React application. Contains the complex UI components and the `/src/engine/` directory, which holds the core `aiPredictor.ts` and `switchAI.ts` prediction algorithms.
 
-4. Run the backend API:
+---
 
-```powershell
-python backend\app.py
-```
+## 🚀 Installation & Setup
 
-By default the backend listens at `http://localhost:5000`.
+### Prerequisites
 
-Health check (PowerShell):
+* **Node.js** (v18+ recommended)
+* **Python** (3.10+ recommended)
+* **Platinum Kaizo Docs.xlsx** (Must be placed in the `/data` directory)
 
-```powershell
-Invoke-RestMethod http://localhost:5000/api/health
-```
+### 1. Backend Setup & Database Build
 
-Expected JSON: `{"status":"ok"}`
-
-5. Start the frontend (in a separate terminal):
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-Open the URL printed by Vite (usually `http://localhost:5173`).
-
-6. End-to-end usage
-
-- Keep backend running at `http://localhost:5000` and frontend running via Vite.
-- In the UI, upload a Gen 4 `.sav` file and confirm parsed `party`/`boxes` data appear.
-
-You can also POST a save directly to the API (PowerShell/curl):
-
-```powershell
-curl -X POST -F "save=@C:\absolute\path\to\your\savefile.sav" http://localhost:5000/api/upload-save
-```
-
-The response should include `party` and `boxes` arrays.
-
-**Quickstart — macOS / Linux / Git Bash (bash)**
-
-On Windows, open Git Bash and run the Bash launcher from the repository root.
+First, set up the Python environment and compile the game database.
 
 ```bash
+cd backend
 python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r backend/requirements.txt
-python backend/build_database.py
-python backend/app.py
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# Run the database builder to parse the Excel document
+python build_database.py
+
 ```
 
-If you use the helper script, run `scripts/run-dev.sh`; it now auto-detects the venv activation script for both Unix and Windows Git Bash layouts.
+*Note: This will generate `kaizo_data.json` and `trainer_db.json` in the `/data` directory.*
 
-Frontend (bash):
+### 2. Frontend Setup
 
 ```bash
-cd frontend
+cd ../frontend
 npm install
-npm run dev
+
 ```
 
-## Troubleshooting
+### 3. Running the Application
 
-- Module import errors: re-activate the venv and reinstall `backend/requirements.txt`.
-- `pythonnet` / .NET errors: install or repair the host .NET runtime and restart the backend.
-- Frontend cannot reach backend: ensure backend is running on port `5000` and no firewall blocks the port.
-- Upload fails with “No file provided”: ensure the multipart form key is named `save` when using curl or clients.
+You can run the full stack simultaneously using the provided scripts from the root directory:
+
+**Windows:**
+
+```powershell
+./scripts/run-dev.ps1
+
+```
+
+**Mac/Linux:**
+
+```bash
+chmod +x scripts/run-dev.sh
+./scripts/run-dev.sh
+
+```
+
+The frontend will be available at `http://localhost:5173`.
+
+---
+
+## ⚙️ How the Prediction Engine Works
+
+When an enemy is loaded, the tool checks `trainer_db.json` for their specific AI flags.
+
+1. **Base Initialization:** All available moves start with a base score of 100.
+2. **Flag Evaluation:** The engine passes the moves through every active flag (Basic, Eval Attack, Expert, Prioritize Status, etc.).
+3. **Gen 4 Emulation:** Specific routines are executed. For instance, if the *Evaluate Attack* flag is active, the engine checks raw damage rolls. If a move guarantees a KO, it receives a +4 score modifier.
+4. **Simulation:** Because some flags only trigger a percentage of the time (e.g., 80% chance to penalize a risky move), the system simulates the interaction 10,000 times, rolling the dice on the percentages, resolving the highest score, and tallying the winner. The final output on the UI represents the exact statistical likelihood of each move being chosen by the in-game engine.
