@@ -72,7 +72,7 @@ body {
 
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 220px 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: 10px;
   align-items: start;
 }
@@ -150,6 +150,44 @@ body {
 .split-toggle.active {
   background: #1d4ed8;
   border-color: #60a5fa;
+}
+
+.save-flags-button {
+  border: 1px solid var(--line-dark);
+  background: #16a34a;
+  color: var(--text);
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  margin-top: 6px;
+}
+
+.save-flags-button:hover {
+  background: #15803d;
+  border-color: #22c55e;
+}
+
+.ai-flag-editor-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-flag-toggle-button {
+  border: 1px solid var(--line-dark);
+  background: #334155;
+  color: var(--text);
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  align-self: flex-start;
+}
+
+.ai-flag-toggle-button:hover {
+  background: #475569;
+  border-color: var(--accent);
 }
 
 .attr-grid {
@@ -293,7 +331,7 @@ input::placeholder {
 
 .move-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) minmax(120px, 1fr) 62px 82px 82px minmax(140px, 1fr);
+  grid-template-columns: 18px minmax(0, 1fr) minmax(120px, 1fr) 62px 82px 82px;
   gap: 4px;
   align-items: center;
   border: 1px solid transparent;
@@ -328,6 +366,15 @@ input::placeholder {
 .move-inline-damage {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.damage-output-box {
+  border: 1px solid var(--line);
+  background: #111827;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .move-radio {
@@ -383,6 +430,13 @@ input::placeholder {
   grid-template-columns: 180px 1fr 64px 56px;
   gap: 6px;
   align-items: center;
+}
+
+.ai-flag-empty-note {
+  margin: 0 0 0.75rem;
+  color: rgba(226, 232, 240, 0.74);
+  font-size: 0.86rem;
+  line-height: 1.4;
 }
 
 .ai-bar-label {
@@ -476,10 +530,6 @@ input::placeholder {
 }
 
 @media (max-width: 1200px) {
-  .main-grid {
-    grid-template-columns: 1fr;
-  }
-
   .ai-bar-row {
     grid-template-columns: 1fr;
   }

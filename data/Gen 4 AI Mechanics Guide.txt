@@ -1,0 +1,2882 @@
+﻿Gen 4 AI Mechanics:
+1. Intro
+
+
+So, almost every Guide on the Gen 4 AI gets things wrong. Most of them probably have copied each other, and they miss out some very important bugs and game interactions. I’m particularly aware of this [https://www.youtube.com/watch?v=Szxw5sC06G4] video; which does need correcting.
+
+
+This video is my attempt to fix that, its my attempt to put multiple years of experience into a, uh, “short” video. We’ll go over the exact way the AI switches, the special Gen4 Doubles AI behaviors, and a condensed list of what I’ve picked out as the most important AI behaviors to know for the frontier and any difficult romhacks.
+
+
+Each section is clearly marked, and a full transcript with examples is linked in the description. If there are mistakes, the document will get updated.
+
+
+If you are experienced with Gen4 you may want to skip ahead to some of the trap and bug sections, or just treat this like a quick test or recap as i go through examples. If you are new, this may be a bit overwhelming, but I hope the examples help.
+
+
+This write up is largely based on the PRET decomp and also Mow’s excellent website - links for both.
+
+
+
+
+https://github.com/pret/pokeplatinum/tree/main
+https://pokemow.com/Gen4/TrainerAI/
+2. Post-KO Switch AI
+
+
+Probably the most essential logic is understanding after you KO an enemy pokemon, what will come in next. This logic also applies if an enemy uses U-turn, or if an enemy is forced to switch for another reason that we will outline in the mid-turn switch AI section.
+
+
+Post-KO AI is universal. That means it doesn't matter if the enemy trainer has smart ai or not, it's always going to work the same.
+
+
+You can understand Post-KO switch AI as 2 steps:
+
+
+1. The best pokemon with a super effective move.
+2. The most damage possible.
+
+
+
+
+1. Best Pokemon With a super-effective move.
+
+
+The step check is simpler, although it does have 2 massive bugs.
+
+
+In this step, we check all remaining non-fainted pokemon. Do they have a super effective move or not?
+
+
+This brings us to the simplest case and simplest example.
+
+
+Simplest case - only 1 super effective move
+
+
+Lets say I am using a Garchomp.  
+
+
+I just knocked out a Rapidash.
+
+
+In the back the enemy has 2 pokemon they can switch to:
+
+
+  
+
+
+
+  
+
+
+
+Ambipom has Ice Punch, a move super effective vs Garchomp.
+
+
+Absol does not have a super effective move vs Garchomp.
+
+
+The AI will send in Ambipom.
+
+
+Note: The AI will not switch to a pokemon the player’s pokemon is fully immune to. E.g. Jolteon (even with a super effective move) cannot switch into Garchomp
+
+
+—-
+Type-Matchup scoring
+
+
+But what if multiple pokemon have a super effective move?
+
+
+Lets expand the example to have 3 possible switches:
+  
+
+
+
+  
+
+
+
+  
+
+
+
+Now, both ambipom and Latios have a super effective move.
+
+
+So, we perform the following check:
+
+
+For each of Ambipom and Latios’ types - note their type matchup against Garchomp. Then, multiply this by 40. The pokemon with the highest score wins.
+
+
+You may note that Ambipom only has 1 type, normal. However, in the game’s code, any pokemon with a single type is treated as being dual-type.
+
+
+
+
+Pokemon
+	Ambipom (Normal)
+	Latios (Dragon/Psychic)
+	Type 1 matchup vs Garchomp
+	1x (Normal vs Dragon/Ground)
+	2x (Dragon vs Dragon/Ground)
+	Type 2 matchup vs Garchomp
+	1x (Normal vs Dragon/Ground)
+	1x (Psychic vs Dragon/Ground
+	Combined Type Score
+	1+1 = 2
+	2+1 = 3
+	Combined Type Score x40
+	2x40 = 80
+	3x40 = 120
+	
+
+So, we switch to Latios as 120 is larger than 80.
+
+
+Note: it does not matter that Ice Punch is a “better” (4x) move against Garchomp than Dragon Pulse (2x). We always just check for the existence of a super effective move.
+
+
+The AI will send in Latios.
+
+
+—--
+
+
+Lets take note of the way single-type pokemon work here and add in another switch option:
+
+
+  
+
+
+
+If Shelgon was a possible switch, since Shelgon is Dragon monotype:
+________________
+
+
+
+
+Pokemon
+	Ambipom (Normal)
+	Latios (Dragon/Psychic)
+	Shelgon (Dragon)
+	Type 1 matchup vs Garchomp
+	1x (Normal vs Dragon/Ground)
+	2x (Dragon vs Dragon/Ground)
+	2x (Dragon vs Dragon/Ground)
+	Type 2 matchup vs Garchomp
+	1x (Normal vs Dragon/Ground)
+	1x (Psychic vs Dragon/Ground
+	2x (Dragon vs Dragon/Ground)
+	Combined Type Score
+	1+1 = 2
+	2+1 = 3
+	2+2 = 4
+	Combined Type Score x40
+	2x40 = 80
+	3x40 = 120
+	4x40 = 160
+	
+
+Shelgon (160) beats Latios (120), as its Dragon monotype is counted twice, and beats out the fact that Latios’ Psychic typing is only x1 into Garchomp.
+
+
+The AI will send in Shelgon.
+
+
+—--
+
+
+Type-Matchup scoring tiebreaker
+
+
+What if multiple pokemon get the same score?
+
+
+Lets give a new example. This time, the switch options are Bagon and Shelgon
+  
+
+  
+
+
+
+Both pokemon still have a super effective move. 
+
+
+Both pokemon have the same type-matchup score (160).
+
+
+The AI will then send in the pokemon first in the internal Party order. Assuming Bagon is first in the party order;
+
+
+The AI will send in Bagon.
+
+
+—--
+Trap #1 - Ability Adjustment
+
+
+Some, but not all, abilities are considered. To give a brief list:
+
+1. Normalize; is correctly applied for the switch-in consideration. This means if there was an Ice Beam Normalized Delcatty as a switch option - it would not be seen as having a super effective move vs Garchomp. The AI correctly understands that Ice Beam is a “Normal” move.
+   1. Normalize is ignored by the fainted pokemon. This means that if Delcatty was switched out, the pokemon we’re considering switching to would not be seen to have normalize. So e.g. Clear Body Regice is always seen to have Ice Beam as an Ice- move.
+2. Levitate; is correctly applied for the switch-in consideration. For example, if we are using a Levitate Bronzong, the AI will not consider Earthquake to be super effective against Bronzong. The AI cheats to see Bronzong has levitate; it will never guess that you have heatproof.
+   1. This correctly also checks Mold breaker. For example; mold breaker rampardos will understand that its Earthquake can hit Bronzong super-effective.
+   2. This correctly also checks Gravity. If gravity is active, Bronzong is seen as weak to Earthquake. It doesn’t matter if Gravity is about to end, so long as it is currently active at the time of the switch.
+   3. This correctly checks for Iron Ball. If Bronzong is holding an iron ball, it is seen as weak to Earthquake.
+3. Scrappy; is correctly applied for the switch-in consideration. For example, if we are using Spiritomb (Ghost/ Dark) then an enemy with Scrappy + Brick Break will see that it can hit spiritomb super-effective with brick break.
+4. Wonder Guard; is correctly applied for the switch-in consideration. Of course, this should never matter, since the check is for super effective anyway.
+
+
+All other abilities are not considered.
+
+
+For example, Lets say I somehow skill swap Volt Absorb onto Lapras; the AI will still send in a thunderbolt enemy, thinking it can hit super effectively.
+
+
+—-
+
+
+Trap #2 - Status moves
+
+
+Something to be really careful is the following example:
+  
+
+  
+
+
+
+Ambipom and Gyarados do not have a super-effective attack against Garchomp.
+
+
+However - status moves count for this check.
+
+
+Dragon Dance is considered a super effective move.
+
+
+The AI will send in Gyarados.
+
+
+—-
+Trap #3 - Variable type moves
+
+
+Variable type moves are considered to be their “adjusted” type correctly. For example:
+
+
+1. A pokemon with Hidden Power is seen as having the hidden power of that type, instead of the game always assuming its “normal” type
+2. The move weather ball will correctly adjust its type to the weather
+3. The move Judgment will correctly adjust its type to the plate held by the user.
+4. The move Natural Gift will correctly adjust to the berry held.
+
+
+—-
+Bug #1 - Type Check Overflow
+
+
+This is the most famous switch AI bug and the most important one to be aware of.
+
+
+Lets bring in a new example. We still have Garchomp, the possible switch ins are Ambipom and Regice:
+
+
+  
+
+
+
+  
+
+
+
+Both pokemon have a super effective move. We do the type-matchup check:
+
+
+
+
+Pokemon
+	Ambipom (Normal)
+	Regice (Ice)
+	Type 1 matchup vs Garchomp
+	1x (Normal vs Dragon/Ground)
+	4x (Ice vs Dragon/Ground)
+	Type 2 matchup vs Garchomp
+	1x (Normal vs Dragon/Ground)
+	4x (Ice vs Dragon/Ground
+	Combined Type Score
+	1+1 = 2
+	4+4 = 8
+	Combined Type Score x40
+	2x40 = 80
+	8x40 = 320
+	
+
+
+
+It looks like Regice would be sent in, as 320 is much larger than 80.
+
+
+However, the maximum possible score is 255 for programming reasons.
+
+
+That means, Regice’s true score is 320 mod 256 = 64.
+
+
+Pokemon
+	Ambipom (Normal)
+	Regice (Ice)
+	Type 1 matchup vs Garchomp
+	1x (Normal vs Dragon/Ground)
+	4x (Ice vs Dragon/Ground)
+	Type 2 matchup vs Garchomp
+	1x (Normal vs Dragon/Ground)
+	4x (Ice vs Dragon/Ground
+	Combined Type Score
+	1+1 = 2
+	4+4 = 8
+	Combined Type Score x40
+	2x40 = 80
+	8x40 = 320
+	Overflow Adjustment
+	80
+	320-256 = 64
+	
+
+Since 80 is larger than 64: Ambipom will be sent in.
+
+
+Note on this bug: it must be a 4x interaction on both types to achieve overflow.
+
+
+For example: Ludicolo (water / grass) against Golem (Ground/ Rock) has 4x super effective type checks on both. It would also score 64 here, for the same reason as regice does above.
+
+
+A 4x and 2x interaction (e.g. Swampert vs Golem) scores 6x40 = 240, which does not overflow.
+
+
+This bug is common. A lot of pokemon have 4x weaknesses. A lot of pokemon in the frontier (or difficult challenges) will have coverage attacks for them.
+
+
+—
+
+
+Note that, this bug doesnt mean a regice switch-in is impossible.
+
+
+Consider the following scenario:
+  
+
+  
+
+
+
+Of course, Regice has a lower type score. But in this scenario Regice is the only pokemon with a super effective move - the AI will choose to switch to it.
+
+
+Regice will be sent out.
+
+
+—-
+Bug #2 - Immunity Check Fail
+
+
+This is a nasty bug. It’s rare, but can be devastating. It’s a variant of a famous gen3 bug but recently discovered.
+
+
+Let’s do a new example to demonstrate this:
+
+
+I am using Gliscor
+  
+
+
+
+The opponent is considering sending in Stantler and Regice:
+  
+
+  
+
+Now, you would think that Regice is sent in. It has Ice Beam, which is super effective. Stantler has no super effective moves. But:
+
+
+Gliscor is seen as weak to Electric in this stage of the switch AI.
+
+
+Because Stantler scores 80 (normal is 1x effective and scored twice; 1+1 is 2 and 2x40 is 80) - and Regice scores 64 (same as vs garchomp) - Stantler wins the type check, and since thunder wave is “super effective”;
+
+
+Stantler will be sent out.
+
+
+This bug is rare.
+
+
+For a pokemon to be affected by it, the internal order for the type-chart matchup check of its immunity (electric vs ground in this case) must occur before the type-chart matchup check of its weakness (electric vs flying in this case).
+
+
+Exact list of affected pokemon in regular gen4 games:
+
+
+1. Gligar and Gliscor  - are weak to electric
+2. Aerodactyl - is weak to ground
+3. Skarmory - is weak to ground
+4. Girafarig - is weak to ghost.
+
+
+I am aware that this video by DRXX lists more pokemon, however this is just simply wrong. I have no idea how his list was made but it's just wrong.
+
+
+You can check this yourself here: https://github.com/pret/pokeplatinum/blob/main/src/battle/battle_lib.c#L2399
+
+
+For a pokemon to be on this list, its first type matchup must be immune and the second must be super effective. E.g.
+
+
+  
+
+
+
+Here you can see that Ground vs Flying occurs before Ground vs Rock. That is why Aerodactyl is seen as weak to Ground, but Crobat is not (since the ground vs Poison check happens before ground vs flying).
+
+
+Basically, the super effective check overrules the fact that the previous check was seen as immune.
+
+
+If you are playing a Romhack that adds more types (particularly fairy) - more pokemon may be affected. Whether or not they are affected is determined by the internal type-check order in the code of the romhack, which may vary game-to-game.
+
+
+—
+
+
+Of course, quite often, the enemy team may have no pokemon with super effective moves against you. 
+
+
+In this case, Post-KO switch AI moves on to the next check:
+2. The Most Damage Possible
+
+
+This check is a pure damage calculation. Again, this check only runs if no super effective move exists as a switch-in option.
+
+
+For all switch options, all their moves (with fixed power) have their damage calculated against the target pokemon, as if the move was used by the pokemon that just fainted.
+
+
+The move that does the most damage in this check is chosen as the switch-in option.
+
+
+Lets do an example:
+
+
+I am using Garchomp-1:
+
+
+  
+
+
+
+I just knocked out Gastrodon-2:
+  
+
+
+
+
+
+The AI can switch to either: 
+
+
+  
+
+
+
+  
+
+
+
+Lets put the damaging moves for each golduck and venusaur into the damage calculator:
+
+First Golduck’s attacks:
+
+
+  
+
+
+
+Most damage = 88 from Surf.
+
+
+Then Venusaur’s Attacks:
+
+
+  
+
+
+
+Most damage = 86 from Leaf storm.
+
+
+Because 88 is larger than 86, Golduck’s Surf “wins” this check, and
+
+
+Golduck is sent out.
+
+
+Note: As mentioned later also, Life Orb damage boost does not apply in this stage.
+
+
+—-
+Trap #1 - Non-standard attacks
+
+
+Moves that have variable base power are not included. However, this list can be a bit arbitrary. For example; Weather ball technically has variable power, but weather ball is included. However Low Kick and Reversal - are not included. 
+
+
+The key is: in the game’s code, the move has to have a base power of “1”. The exact list is here 
+https://github.com/pret/pokeplatinum/tree/main/res/battle/moves
+
+
+Moves with a base power of 1 (These moves are ignored):
+1. OHKO moves; guillotine, sheer cold, etc
+2. Bide
+3. Super Fang
+4. Flail / Reversal
+5. Present
+6. Magnitude
+7. Endeavor
+8. Counter/ Mirror Coat/ Metal Burst
+9. Fling
+10. Trump Card
+11. Spit Up
+12. Low Kick/ Grass Knot
+
+
+Remember, these variable power ignored moves are still “super effective” in the earlier check for super effective - they just aren’t part of the “Most Damage” step.
+
+
+To be as simple as possible:
+
+
+Moves that do not have a base power of 1, but you might think they do (These moves are included in damage checks):
+1. Explosion/ Self-destruct
+2. Eruption/ Water Spout
+3. Dream Eater
+4. Revenge/ Payback/ Avalanche
+5. Sucker Punch
+6. Weather Ball
+7. Facade
+
+
+Trap #2 - Variable Type Adjustment
+
+
+Variable-type moves use their base type in the first stage of this damage calculation.
+
+
+That means if there is some kind of type-adjustment related to abilities - it will not be applied correctly.
+
+
+A few examples:
+
+
+* Sunny Day Weather Ball is fire type. A pokemon with Thick Fat, would not see the move as being Fire Type in the ability check, and would give the incorrect damage result. 
+* Hidden Power Fire is a fire type attack. But against a pokemon with Dry Skin, the increased damage is not correctly applied, as the game only understands its a fire-type attack after the initial damage calculation.
+* Fire-type Judgment is also a fire type attack. But against a pokemon with Heatproof, the damage would not be correctly reduced.
+
+
+Note that the actual type interaction (e.g. Hidden power Fire being seen as not very effective damage vs a water type) is correctly applied; it's just that the ability-adjustment is not.
+
+
+Also be careful of HP-dependent abilities such as swarm or blaze.
+
+
+If the pokemon just fainted, it will have 0 HP and is indeed technically in blaze/swarm/ etc.
+
+
+The same applies to items - if the pokemon that just fainted has an item like Choice Band - this will be included in the calculations for all checks.
+Trap #3 - No valid attacks
+
+
+If no opponent has a single move that can deal damage  then the game will simply send out the next pokemon in party order. 
+
+
+Trap #4 - Checking For A Kill
+
+
+A very common misconception on many guides is that the AI checks to see if a move kills in this step.
+
+
+It does not.
+
+
+If I have a 1HP garchomp and the enemy could switch to a pokemon that does 200 damage in the check, or an enemy that deals 1 damage in the check - the 200 check wins.
+
+
+Whether or not the move will kill your pokemon is irrelevant.
+
+
+Bug #1 - Damage Overflow
+
+
+This is rare in typical gameplay, but can definitely occur fairly often at high levels (Factory Level 100 or lategame romhack stuff) - when using lopsided pokemon or when facing something that hits incredibly hard.
+
+
+The maximum damage possible in the check before is 255.
+
+
+255 damage is a lot. Remember, there is no super effective boost (if a super effective move exists, we dont reach this part of the check).
+
+
+Even at level 100, to do 255+ damage probably requires a very low defense (or special defense) from your pokemon, STAB, and a high Attack (or special attack) from the enemy.
+
+
+Lets do an example:
+
+
+Level 100 Rhydon (31 IVs, no EVs) vs Latios (31 IVs, no EVs). Switch in has the move psychic.
+
+
+  
+
+
+
+(Remember, this means Latios just fainted, and the switch-in pokemon has the move psychic)
+
+
+This move can do 268 damage.
+
+
+So, we adjust (mod256): 268 - 256 = 12
+
+
+12 damage is terrible.
+
+
+However, if the switch in target has the move Psychic, It may also have a move like Dark Pulse:
+
+
+  
+
+
+
+In this case, since 159 is lower than 256, it's fine. The switch in would consider Dark Pulse as its strongest move, and may still win the switch in decision against e.g. a physical attacker (since latios has low atk relative to special atk, and rhydon has high def relative to spdef).
+
+
+Of course, if that pokemon only had the move psychic; its very likely the AI will choose another pokemon instead.
+
+
+—-
+
+
+In rarer cases, we may have something like this:
+
+
+  
+
+
+
+Here, 711 is the damage from Double-Edge.
+
+
+Since 711-256 is 455 (still more than 255), we have to do
+455-256 =199
+
+
+To get a number lower than 256. So, in this example, the AI thinks Double-Edge scores 199.
+
+
+—
+
+
+There is 1 case where 255+ damage is quite common - which is Explosion
+
+
+Explosion pokemon are obviously very likely to win “most damage” in this step in general. But at high levels, the chance of damage overflowing is also very high.
+
+
+In the frontier, because most Explosion sets carry other powerful moves, there’s a good chance they win the switch in decision for another reason anyway.
+  
+
+Bug #2 - Variable Damage Carry-Over
+
+
+Back in Trap 1, I said that non-standard damage moves are ignored. However, this is not completely true.
+
+
+When the AI is calculating “How much damage does this move do”, it does this correctly for all moves with regular power (such as Earthquake) and it does this correctly for all moves with 0 power (status moves, like sleep powder).
+
+
+However, moves with a power of 1 are technically “skipped”, and the AI believes that the damage for these moves is whatever was just calculated.
+
+
+Usually, this is fine. Consider Vileplume-2:
+  
+
+Vileplume calculates toxic first - and sees it does 0 damage. That means when it calculates grass knot, it keeps the memory of 0 damage from toxic - and grass knot is seen as dealing 0 damage. This is fine, and it means Vileplume2 correctly ignores Grass Knot as being damaging.
+
+
+It’s also fine in most other cases. Consider Alakazam-3:
+  
+
+
+
+In this case, signal beam is calculated before grass knot. Lets say signal beam does 50 damage. Because Alakazam skips the grass knot check - it thinks Grass Knot also does 50 damage. But that’s fine. Because it doesnt change how Alakazam ranks in the switch-in ai compared to other options. Grass Knot isn’t scoring move.
+
+
+Now, you may be thinking: what if there was no move before Grass Knot? What is the score then? Well, the answer is that its whatever the final pokemon’s type check result was (back in step 1 when we calculated typing).
+
+
+When is this a problem? Basically, when (in party order) the First pokemon available has a variable power move in its first moveslot - it will assume that this move does damage equal to the type matchup of the final pokemon against you.
+
+
+—
+
+
+Lets do a real example:
+
+I have Garchomp1 again.I’m playing at Level 50.
+  
+
+
+
+The AI just had its Blastoise faint:
+  
+
+
+
+And now the AI is thinking to switch out one of the following pokemon:
+
+
+  
+
+  
+
+
+
+
+
+
+
+If Blastoise uses Earthquake (Aggron’s strongest move) against Garchomp: it does 37 damage.
+
+
+If Blastoise uses Waterfall (Ludicolo’s strongest move) against Garchomp: it does 44 damage.
+
+
+Now, Ludicolo does more damage on its best move. So, Ludicolo should get sent out.
+
+
+However - this bug applies to Metal Burst (a variable damage move).
+
+
+Metal burst is going to do damage equal to ludicolos matchup typing, as ludicolo was the final pokemon to have its typing checked vs Garchomp:
+
+
+* Grass: 1x against Garchomp
+* Water: 1x against Garchomp
+* Overall: 1+1 = 2 
+* 2 x 40 = 80 type matchup score
+
+
+So Metal burst does “80” damage to Garchomp - this is better than 44 from Waterfall. So, Aggron gets sent out 
+
+
+This is a really nasty bug. It’s rare, but incredibly likely to change the switch order when active.
+
+
+Post-Switch Information from Pokeball In Frontier
+
+
+More advanced Frontier players want to get into the habit of checking this
+
+
+Lets say I knock out the first pokemon. Since the AI in the frontier has 2 switch options (slot 2 and slot 3), i get either this:
+
+
+  
+
+
+
+Which shows the AI switched pokemon in slot #2 in.
+
+
+—-
+
+
+Or this:
+
+
+  
+
+
+
+Which shows the AI switched pokemon in slot #3 in.
+
+
+Note: the way this works, is that the fainted pokemon goes into the slot of the pokemon chosen to replace it.
+
+
+Now in frontier, we frequently are working with partial information (particularly in tower and factory).
+
+
+We can say a few things here:
+
+
+Lets say I have Garchomp out and Ambipom4 switches in:
+  
+
+If Ambipom4 was slot3, then slot2 cannot have a pokemon with a dragon or ice move, that has an equal or better type-matchup score against Garchomp (since a type-matchup + super effective move tie would have put slot 2 out first)
+
+
+If Ambipom4 was slot2, then slot3 cannot have a better type matchup score against garchomp (with a super effective move).
+
+
+Lets say Miltank4 switches in:
+  
+
+I now know the other pokemon does not have a super effective move against garchomp. And remember, this also includes e.g. Dragon Dance and Hail.
+
+
+In this case, I know for a fact that the other pokemon has a weaker move than miltank, if miltank was slot 3. If miltank was slot2, then its possible the final pokemon has an equally powerful move against Garchomp.
+
+
+These ties in “most powerful move” - are typically moves with the exact same base power (and typically can be the exact same move). It’s possible for a physical and special move to tie in overall damage check output - but very very rare.
+
+
+
+
+If the AI sends in an unknown set. E.g. The AI sends in Regirock
+  
+  
+  
+  
+
+We can say, because of the behavior of switch AI:
+
+
+1. The AI cannot have another switch in with a better type matchup score (or, if regirock is slot3, equal) into Garchomp, with a super effective move. When you think about it, that’s a massive list of pokemon. It includes e.g. almost all water types with ice moves
+2. The most likely set is Regirock2. This is because Regirock2 is the only one with a super-effective move; it wins the earlier check in post-ko switch AI.
+   1. If Regirock2 is revealed, then we now know the final pokemon either has a super effective move vs garchomp (but lost on type matchup)
+   2. Or, if they dont have a super effective move, our knowledge is purely limited to standard item clause.
+3. The next most likely set is Regirock4. This is because Explosion is very likely to win the “strongest move” check.
+   1. If Regirock4 is revealed, then we don’t know much about the final pokemon. Almost every regular attack scores worse than explosion.
+4. But Regirock1 and Regirock3 also are not that unlikely.
+   1. Both of these sets have strong 100 base power moves which can win (or tie) in switch decisions.
+
+
+—
+
+
+A more revealing switch in could be something like Medicham:
+  
+  
+  
+  
+
+Medicham has 4 very different sets, one with coverage, a special attacker, and 2 with quite different strongest base power physical moves. Medicham would reveal a lot more info than Regirock, once its set is known.
+
+
+—
+
+
+Also consider that something like Wailord2 comes out:
+  
+
+
+
+So long as Wailord didnt trigger super effective AI, the list of pokemon that can be last is now tiny! Whirlpool is an incredibly weak attack. There’s a good chance the final pokemon has no actual attacking moves - and could be something like Milotic2.
+  
+
+
+
+Here’s a broad truth but you should be careful in over-using it:
+
+
+If pokemon #3 was sent out, and doesn't have a terrible type matchup, the 2nd pokemon probably doesn't have a super effective move.
+
+
+How often this is true depends on your pokemon. A pokemon with only a few weaknesses (and a pokemon with a LOT of weakness) triggers this as being true more often. This is part of why I recommend leading with a polarizing or anti-polarizing lead in Factory where possible (e.g. an Electric type).
+
+
+This insight can win games for you, just be very aware of how it can mislead.
+
+
+The fact that the factory gives you an overall type hint is huge - and the equivalent in tower (knowing the trainer’s overall roster of possible pokemon) - is also huge. You can often combine this with pokeball and team knowledge.
+
+
+It is not that rare to narrow down the final pokemon on a trainer to 2 or 3 possibilities instead of 40+ by using this.
+
+
+3. Recap - Post-KO Switch AI
+
+
+The following is the exact sequence:
+
+
+1. Calculate the type-matchup score of each possible switch candidate against your pokemon. If its a monotype pokemon, pretend its secondary type is also its primary type. Multiply this by 40. If this number is greater than 255, take away 256 from the number.
+2. Starting with the pokemon with the highest score in step 1, check if it has any super effective move. This includes status moves. It also includes move types used in the super effective-immunity bug checklist. If a pokemon with a super effective move is found, switch to it.
+   1. If multiple pokemon tie on best type matchup score and they have super effective moves, the one first in the party order will win.
+3. If no pokemon from step 2 have super effective moves, then calculate the damage each switch candidate could do to your pokemon with all of their moves if the move was used by the pokemon that just fainted. If a move does more than 255 damage, subtract 256 from that damage until it is 255 or lower - this is to be considered the damage for that move.
+   1. If the first move of the first pokemon being considered is “variable power” - set the damage of this move equal to the final pokemon’s matchup score from step 1
+   2. Outside of this, ignore all variable power moves
+4. Find the pokemon that has the move that dealt the most damage in step 3, switch to it.
+   1. If multiple pokemon have the strongest move, then the tiebreaker is party order again.
+5. If no pokemon has a super effective move (step 2 failure) and no pokemon has any move that does damage (step 4 failure), send out the first pokemon in party order.
+
+
+What does this mean in plain english? 
+
+
+The Gen4 Switch AI actually makes sense. It tries to pick a pokemon strong into you, with a super effective move. If it can't do that, it tries to pick a pokemon that probably does the most damage to you. Of course, this isn't always exactly what happens. 
+
+
+The overflow type check bug is very very important. And it's important to understand that the most damage check is heavily influenced by a switch in candidate that shares a stab move with the pokemon that just fainted. It’s also important to understand that there is a bias towards switching in a pokemon with the same damage category as the pokemon that just fainted (e.g. if a special attacker just fainted, a special attacker is more often chosen as the switch in), and also a bias towards switching a pokemon in which has a favorable damage category against yours (e.g. if you have a pokemon like blissey with much lower physical defense, it's more likely the AI will pick a pokemon with a physical damaging move).
+
+
+If you really really care - pay attention to the bugs and the traps mentioned. A lot of these may not be common, but switch AI is something you basically think about in every single battle, so its quite likely to come up at some point.
+________________
+3. Mid-turn Switch AI
+
+
+Mid-turn switch AI is when the AI switches to another pokemon while its current pokemon is still alive.
+
+
+Mid-turn switch AI is different to Post KO AI. It’s also something that is really important to be aware of, as this is the most human-like the AI gets. If you are caught unaware by switch AI, it can easily lead to a loss.
+
+
+Mid-turn switch AI is rare, based on the way strong players typically approach the game. But since battling is incredibly common in pokemon, this is also likely to be very relevant to you at some point.
+
+
+When Mid-turn switching is triggered, it may or may not run post-KO switch AI to choose the target.
+
+
+Mid-turn switching is run in 1 big algorithm that goes in the same order as outlined here. 
+1. Switch AI doesn’t care about move AI
+This is really important. Basically, it doesn't matter what the AI could do if it uses a move. Switch AI runs before any kind of move AI.
+
+
+Maybe the AI would win the game if it attacked. Maybe staying in is a really good idea for other obvious reasons. Doesn’t matter. Switch AI is the boss of the move AI, it runs first, and if it wants the switch, the enemy is going to switch.
+2. Impossible Switch Check
+
+
+The first thing Switch AI does is check if switching won't be illegal. This check isn’t particularly clever though. If the AI thinks it can't switch mid turn in this check, it obviously will never switch.
+
+
+1. If the AI is trapped by a move like sand tomb or bind, the AI will never switch.
+2. If the AI has used ingrain, the AI will never switch.
+3. If you have the ability Shadow Tag, the AI will never switch
+4. If you have the ability Arena Trap, the AI will never switch
+5. If any other pokemon on the field (including the AI’s ally pokemon) has magnet pull, and this pokemon is a steel type, the AI will never switch
+
+
+Bug #1 - Switch checking
+
+
+So this obviously leaves some huge gaps:
+1. The AI doesn’t factor in that if its a flying or levitating pokemon, arena trap does nothing
+2. The AI doesn’t factor in that if it has Shadow Tag, then shadow tag doesn’t trap it
+3. The AI doesn’t factor in that it never traps its teammate with magnet pull
+4. The AI doesn’t understand that the item Shed Shell lets it always switch
+
+
+The AI also checks if it has a living party member to switch to before proceeding.
+3. Perish Song
+This is the most predictable way to see the AI switch.
+
+
+  
+
+
+
+The AI will switch if it's about to die to Perish Song. There is no randomness involved here.
+
+
+Once the switch is triggered, it will simply run the “Post KO” switch AI to decide what to switch to.
+
+
+Perish song is one of the easiest ways to abuse a free attack against the enemy AI because of this.
+4. Wonder Guard
+Wonder Guard has a strange check. This is specifically a check for if the player is using Wonder Guard.
+  
+
+
+
+First, the AI will never switch against Wonder Guard if it thinks this is a doubles match.
+
+
+Next, check the currently active pokemon. Does it have a move that hits the player’s Wonder Guard pokemon? Any variable type move will use its correct typing here. 
+
+
+If the AI doesn’t have an attack that hits Wonder Guard, search the party for non-fainted pokemon. We search for moves that can hit Wonder Guard super effectively. Again, variable-type moves use the correct type.
+
+
+Each time the AI finds a move that hits Wonder Guard super-effectively, it has a 66.7% (⅔) chance to switch. It will repeat this ⅔ check  until there are no pokemon left to check.
+
+
+This means e.g. if the enemy team has a pokemon with 2 super effective moves against Wonder Guard, it would have a 88.9% (8/9) chance to switch. 
+
+
+If the switch activates; the AI will switch to the pokemon with that move. It will not run regular Post-KO switch AI.
+
+
+Crucially though; the AI is never guaranteed to switch against Wonder Guard. Making this unreliable.
+5. No Damaging Moves
+This should be a simple check but it's actually rather complex.
+
+
+First, the AI checks if it can hit any of your pokemon with a damaging move. In doubles, this includes both your pokemon. It detects damage based on the immunity check.
+
+
+This immunity check is more than just a type check. It includes Normalize, Levitate, Foresight, Scrappy, Wonder Guard, Mold Breaker.
+
+
+This does not include a PP check. Moves out of PP are seen as being able to damage.
+
+
+If any move deals damage - it wont switch in this section.
+
+
+If it has 0 or 1 attacking move - it wont switch in this section.
+
+
+Otherwise, meaning it has 2+ damaging moves (and none deal damage), look through the entire party for non-fainted pokemon. Every single time you find a damaging move:
+
+
+1. If the move is super effective, 66.7% (⅔) chance to switch.
+
+
+If this did not cause a switch, loop through the entire team and all their moves again:
+
+
+2. If the move is neutral damage, 50% (½) chance to switch.
+
+
+If switching is chosen, switch to the pokemon which had a move that triggered the switch. Do not run regular Post-KO switch AI.
+
+
+6. Ability Absorbing
+This is a strange, but logical, switch check.
+
+
+The AI is seeking out specific abilities that absorb the last move used by the user.
+
+
+A number of checks are run:
+
+
+1. First, if the AI has a super effective move, stop (do not switch) - 66.7% of the time
+2. Check if the AI has been hit by a damaging move in the last turn. If it did not (e.g. because of a miss, or because the move deals 0 damage) - stop (do not switch).
+   1. This includes if the AI went last in the previous turn. The player's move is not kept in memory.
+3. Check if the last move that hit The AI was any of the following types:
+   1. Fire, Water, Electric
+   2. If yes, set the “ability to check” to be:
+      1. Flash Fire
+      2. Water Absorb
+      3. Volt Absorb
+                respectively.
+4. If the AI’s current pokemon has that ability (i.e. last attack was Fire and it has Flash Fire) - do not switch. Note: this is not a pointless check because of e.g. mold breaker
+
+
+If all these checks pass, we then look for a pokemon that is a viable switch which has the corresponding correct absorb ability for the last attack.
+
+
+Each time a pokemon with this ability is found, 50% chance to switch to it (this does not run post-KO switch AI). Pokemon that appear first in the party order get priority.
+
+
+E.g. The AI just got hit by Thunderbolt on Dragonite. Jolteon (volt absorb) is in the party as an available switch in; so long as Dragonite has no super effective move, it is 50% to switch to Jolteon.
+7. Natural Cure
+
+
+The AI will never trigger this switch unless all 3 of these conditions are met:
+1. It has natural cure
+2. It is asleep (no other status triggers this)
+3. It has 50% or more HP remaining
+
+
+Next, if the pokemon was not hit or targeted by a move last turn, or if the move was non-damaging - there is a 50% chance to trigger post-ko switch AI.
+
+
+Next, if it was a damaging move, run the Immune and Resist switch procedures, which are outlined in the following sections. 
+For both immune and resist, a 50% check is run if a pokemon is found.
+
+
+Finally, if all that fails, randomly switch 50% of the time anyway, doing regular post-ko switch AI.
+8. Super Effective and Stat Boost check
+This only applies to checks later than here.
+
+
+Check if the AI has a super effective move against the player.
+
+
+For each super effective move it has -> 90% to stop, and never switch for any checks after this. This stacks for every attack.
+
+
+This means if the AI has 2 super effective moves, there’s a 99% chance it will run no further checks and not switch.
+
+
+Critically, this is also not 100% reliable. Even if the AI has super effective moves - it might switch.
+
+
+
+
+Next, the AI counts all positive boosts it has. If these add up to 4 or more, the AI will never switch. 
+
+
+E.g. If an enemy has:
+* +3 Attack
+* +2 speed
+* -6 defense
+* -6 special defense
+
+
+It will never switch. This is because only attack and speed are added, as only they are positive boosts.
+9. Immune Switch
+(note; this check also runs in the Natural Cure section mentioned above, with the same 50% success rate per move found)
+
+
+For this check to run, the AI pokemon must have been hit by a move, and must have acted first in the turn (it does not necessarily have to be faster than the player; this is also possible through the use of a move like quick attack, or if the player used e.g. counter).
+
+
+If the last move to hit the AI was a status move, stop.
+
+
+Search the party for pokemon:
+1. Which is immune to the last move used against the AI.
+   1. This includes the previous checks - correctly identifying Normalize, Mold Breaker, Levitate, Wonder Guard
+   2. But, does not include e.g. Volt Absorb
+2. (Assuming 1 is true) - Find moves that are super effective against the player.
+   1. For each move found, 50% chance to swap to that pokemon.
+   2. This super effective check also applies the same checks as above; normalize, mold breaker, levitate, Wonder Guard.
+
+
+As with many other cases in switch ai - because it's per move - this stacks. So e.g. If the player just used Earthquake with Golem and the AI has an Articuno with Ice beam and Water pulse - it would be 75% overall to swap to that articuno (both moves trigger a 50% check).
+10. Resist Switch
+This is identical to the immune switch except:
+
+
+1. Instead of checking for a party pokemon immune to the last move, check for one that simply resists
+2. Each time a super effective move is found; 33.3% chance to switch, not 50%.
+
+
+In the “Natural Cure” section, the chance to switch per move is 50%.
+
+
+
+
+Lessons from Mid-turn Switch AI
+Mid-turn switch AI generally works quite well. Its checks are not perfect, but it does correctly understand typing and apply abilities such as mold breaker and levitate.
+
+
+However, so long as you go first, switching is actually incredibly rare:
+1. Wonder Guard is obviously extremely rare
+2. Perish song is rare; both when used by the player and the enemy AI. You are likely to knock out the enemy before they faint to perish anyway.
+3. (Against a strong opponent) the “No Damaging moves” check passing is rare. In the frontier specifically, its rare to face a pokemon like this.
+4. Rest + Natural cure (on the enemy) is rare, and the player inflicting sleep as a status is rare
+
+
+This leaves 1 major way the AI can switch: Immunity and resist switching. 
+
+
+You can “avoid” this simply by being faster (if the player switches, this automatically is the first action outside of e.g. pursuit anyway). Generally, it's advised to go first as much as possible anyway. Just like it's advised to kill enemies as fast as possible once you do start to attack.
+
+
+When slower pokemon are used (by the player) - typically these are stall and setup pokemon. And naturally, this means you aren't attacking the enemy AI (if you are stalling or setting up or using e.g. toxic) - which means you can't trigger the immune/resist switch anyway.
+
+
+Pokemon already punishes players for using slow offensive pokemon like Rhydon. But Mid-turn switch ai just gives you another reason to avoid them.
+
+
+Sometimes, going 2nd is unavoidable though. Fast enemies do exist. It is important to get into the habit of clicking different moves when possible here.
+
+
+E.g. If you are facing a (fast) AI espeon and you have the moves Surf and Ice beam. Assuming both moves will always 2HKO - you will want to use a different move on the 2nd turn. That way, you can catch an immune or resist switch. 
+
+
+This is a small but worthwhile habit to develop.
+
+
+The switch AI is possible to abuse, but the randomness makes this hard.
+
+
+E.g. consider i am facing the following team:
+  
+
+  
+
+
+
+I could bring the following mantine to this battle:
+
+
+  
+
+
+
+Mantine should spam Ice Beam here. Hippowdon3 will trigger “no damaging moves” - and since Togekiss3 has 2 moves neutral into Mantine - it has a 75% chance to switch in each turn.
+
+
+However, while a good idea to Ice Beam, this is not guaranteed. Hippowdon staying in and using both swagger and yawn isn’t ideal. The player may prefer to simply do more damage with surf, or switch to another flying type.
+________________
+4. Move AI Basics
+
+
+The rest of this document focuses on the Move Selection AI. In order to understand it, you need a quick catchup on how move AI works in pokemon.
+
+
+Lets do an example:
+
+
+I have the pokemon Gengar1, and the enemy AI has the pokemon Gastrodon1. It’s the first turn of the match:
+  
+
+  
+
+The AI will score each of Gastrodon’s moves. We’ll assume its “Smart AI” (the frontier standard) - This may look like:
+________________
+
+
+Move
+	Move Score
+	Waterfall
+	+0 (No Change)
+	Earthquake
+	-13 (-12 for ground vs levitate; -1 for being weaker than waterfall)
+	Recover
+	-11 (-8 for full hp (basic ai); -3 for full hp (expert ai))
+	Mirror Coat
+	+0 (No Change)
+	
+
+The reason for these scores are the AI flags. If there is no AI, each score would be left at +0.
+
+
+If Basic AI runs, Earthquake gets -12 (gengar has levitate so it does nothing). And Recover gets -8 (Gastrodon is full HP).
+
+
+If Smart AI also runs, Earthquake gets -1 (it does less damage than waterfall). Recover gets another -3 (Gastrodon is full HP).
+
+
+You can check the AI procedures for moves here: https://pokemow.com/Gen4/TrainerAI
+
+
+After scoring, the AI will pick the move with the highest score.
+
+
+In the scenario above, that is either Waterfall (+0) or Mirror Coat (+0) - since both score +0, it will randomly pick one of them.
+
+
+—
+
+
+An important thing to understand about the move AI is that it can be random in other ways. To repeat our same example:
+
+
+Move
+	Move Score
+	Waterfall
+	+0
+	Earthquake
+	-13
+	Recover
+	-11
+	Mirror Coat
+	+4
+	
+
+This is also possible.
+
+
+Mirror Coat has a chance to get +4 in smart AI vs Gengar. But it is not guaranteed to do so. The chance of this occurring is around 50%.
+
+
+If Mirror Coat does score +4, then it will always be chosen over waterfall.
+
+
+Overall, because 50% of the time Mirror Coat gets +4, and 50% of the time it ties with Waterfall at +0, we can say:
+* 75% chance: Mirror Coat
+* 25% chance: Waterfall
+
+
+
+
+That’s obviously a powerful conclusion. 
+Because Mirror Coat is very likely, gengar may want to use confuse ray first instead.
+
+
+
+
+Now if Smart AI is not active for this trainer, Mirror Coat can never get +4. So it would instead be 50/50 for Mirror Coat vs Waterfall.
+
+
+If Basic is not active for this trainer, then Gastrodon is simply 25% to pick each move.
+
+
+Lets do another example to show how attacks are scored directly:
+
+
+Gengar1 vs Aerodactyl2
+  
+
+  
+
+
+
+Here, Aerodactyl scores +0 on bite. Bite is its strongest move.
+
+
+The other 3 moves - each Fang move - all score -1. They cannot be chosen.
+
+
+The reason they score -1 is because they check the damage of the other moves, and see that bite does more damage. “Weaker attacks” score -1 usually.
+
+
+If 2 (or more) moves deal the exact same maximum damage, then all those moves can score +0 (i.e. they could all be in contention to be chosen as strongest attack).
+
+
+Some moves (like Explosion) are ignored in this step. This means that if the AI’s best damaging move is explosion, its next strongest attack will not get -1 here. A full list of excluded moves is given in the kill AI section.
+
+
+—-
+
+
+
+
+For the rest of this document, we will assume that Basic + Smart AI is active.
+
+
+This is generally true for the frontier (Factory/Castle/Arcade disables Basic AI before match 15, and disables smart AI before match 29). It’s also very likely true for various difficult romhacks and boss fights.
+
+
+Something important to be aware of: in-game fights may have additional flags like “Risky AI”, which may be active as well as Smart AI. If different AI algorithms are involved, this can obviously change move scoring - but the fundamental logic of this guide still applies.
+
+
+—-
+
+
+Important AI Notes and Bugs
+
+
+This is generally true for anything that involves the AI:
+1. Mid-turn switch AI always runs before Move AI.
+2. The AI almost never cares about how much damage you can deal to it. This is a mistake a lot of new players make. The AI considers its moves often in isolation. This means that e.g. Perhaps you easily 2HKO with Surf and you are faster. Well, the AI might just use iron defense. As humans we can judge that to be a pointless mistake, but its just how the AI operates.
+3. The AI will cheat to see your item. E.g. If you have a Choice Scarf, it will know it is slower.
+4. The AI will cheat to see your exact stats (defense and special defense) - and your exact current HP and max HP.
+5. The AI does not know any of your moves until you use them. This matters for a few moves like how the AI will attempt to use Sky Attack once you reveal that your pokemon has protect.
+6. The AI almost never knows your ability until text appears such as:
+   1. “Makes ground moves miss using LEVITATE”
+   2. “Water Absorb made Surf useless”
+   3. “Sturdy prevents Horn Drill”
+Etc. - the ability must be printed as text.
+        Once this text appears - it will remember your ability until you switch out.
+        If the AI does not know your ability yet (no text appears like above): it will randomly         guess your ability, based on the abilities that pokemon should have. E.g. 
+Against Honchkrow it will randomly guess if you have Super luck or insomnia.
+If your pokemon can only have 1 ability (normally) - it will assume you have that ability.
+7. The times the AI will cheat to see your ability are for damage-altering abilities, and for “trapping” abilities (shadow tag, etc)
+8. Unlike gen3, the AI cannot foresee when a Quick Claw will activate in a turn. It also cannot know who is about to win any speed ties.
+   1. However, it will assume (for any pokemon with a Quick Claw) that 20% of the time, Quick Claw triggers, and this can change the behavior of moves that are influenced by speed.
+9. The AI always knows its exact stats, moves, item, ability, and all the stats, moves, item, ability of its ally (even if you are the ally in a tag battle).
+10. The AI does not care about its accuracy at all. It will happily attempt to use Zap Cannon or Aerial ace, so long as they get the same Move AI Score.
+11. The AI’s effectiveness check is weird. Abilities and items can break this. In particular, for “4x super effective” checks - if:
+   1. Solid rock, tinted lens, filter, expert belt, adaptability
+Are in effect, the check may break. E.g. a 4x super effective move against Solid Rock is adjusted to 3x, and then the AI will assume its actually 2x + STAB. The reverse could happen with a 2x super effective adaptability attack being assume as actually being a 4x super effective move.
+Outside of this - effective checks work fine and will correctly include e.g. normalize, the type of weather ball/ hidden power, scrappy, wonder guard, iron ball, mold breaker, etc.
+12. AI scoring is skipped under the following scenarios, which makes the move unusable (into that target);
+   1. The move is out of PP
+   2. The AI is choice-locked into another move
+   3. Torment or disable make the move un-selectable
+   4. The intended target has fainted (the move can still be used against other targets, if they are not fainted)
+   5. Encore, taunt, etc.
+However - even if a move is impossible to select, it will still be assumed as
+valid in other checks. This means that if the most powerful move is out of PP,
+Other attacks still think it can be selected, and may get -1 on their score.
+13. The same “Immune-super effective bug” mentioned earlier with Gliscor will apply here specifically when a check runs like “does this pokemon have a super effective move”.
+
+
+So when is the AI Predictable?
+
+
+This is the biggest question good players will have. In the gastrodon example above - we’re risking something both ways. Of course, there is skill in navigating probabilistic scenarios, but if we’re planning out a strategy, its a lot easier to make the AI more predictable.
+
+
+Kill AI
+
+
+This is the main source of predictability.
+
+
+If the AI’s maximum damage roll with a move can KO your pokemon - that move will get a +4 score in Kill AI.
+
+
++4 is usually enough to win “highest scoring move” and be chosen by the AI.
+
+
+This can then lead to a lot of strategy. For example, if Earthquake will KO our Heatran, then we know we can safely swap to a flying pokemon.
+
+
+What if multiple moves kill?
+
+
+Well, then multiple moves can get +4. Lets say I have a Metapod with 1HP remaining. Almost every single attack in the game can kill my Metapod, so if an enemy has multiple attacks - it will randomly choose among attacks where the highest damage roll can kill.
+
+
+Kill AI Quirks, Bugs and Exceptions
+
+
+There’s a few really big points to make here:
+
+
+1. The AI never assumes or checks if it will get a Critical Hit
+2. The AI never includes random damage variance (“roll” or “range”)
+3. If you have a super-effective damage reduction berry (e.g. yache) - the AI does not see this as reducing damage. So if Ice beam should do 150% to Garchomp without the yache berry, and 75% with the yache berry - the AI thinks it does 150%.
+4. Focus Sash is completely ignored.
+5. Priority Kill AI - these moves get +6, not +4. E.g. Extreemespeed.
+6. If the move has other AI (e.g. icy wind changes its score based on who is faster) - these are included into the scoring. This means (if the AI is slower) a (kill) icy wind might score +6, but if the AI is faster, (kill) icy wind might score only +1 
+7. The AI does not see the Life Orb damage boost. If a life orb attack does 120% damage with life orb included, and 92% without it included, the AI thinks it does 92%.
+8. The AI also never sees the effect of the item Metronome.
+9. The AI will cheat to see abilities you have that alter damage here. E.g. Heatproof, thick fat.
+10. Unless stated below, the AI does correctly check most other damage multipliers. This includes things like Choice Specs, Magnet, Reflect, Blaze, Huge Power, etc. - these all work.
+11. The AI correctly calculates the damage of moves like Seismic toss with fixed damage.
+
+
+A lot of moves have boosted power under certain circumstances. The AI does not understand how this increased damage applies.This matters for Kill AI and when the AI tries to understand which of its moves are strongest. In particular:
+1. Multi-hit moves are assumed to only hit once.
+2. Payback, Revenge, Avalanche - are assumed to use their base power and never double.
+3. Reckless + Recoil damage is not boosted correctly
+4. Facade + status is not doubled correctly
+5. Various status-doubling effects are not applied including:
+   1. Wake-up slap vs sleeping target
+   2. Smelling salts vs paralyzed target
+   3. Stomp vs “minimized” target
+   4. Brine vs low HP target
+   5. Surf/Whirlpool vs Diving target
+   6. Gust/ Twister vs Flying target
+   7. Earthquake/Magnitude vs Digging target
+   8. Rollout/ Ice ball after the user uses defense curl
+6. “Consecutive hit” moves (fury cutter power increase, rollout power increase on more htis) are also not applied.
+7. Future Sight and Doom desire do not correctly use typeless damage, but instead (wrongly) use STAB and effectiveness.
+8. Psywave picks a random power for damage checks
+9. Weather ball seems completely broken on type adjustment in the damage step specifically, although other checks will understand its typing.
+
+
+Some moves are completely ignored in all damage calculations (Kill AI but also in damage comparison for the AI to find its strongest move). None of these moves can ever get +4, even if they guaranteed kill:
+1. Guillotine
+2. Horn Drill
+3. Counter
+4. Fissure
+5. Bide
+6. Super Fang
+7. Flail
+8. Reversal
+9. Present
+10. Magnitude
+11. Mirror Coat
+12. Endeavor
+13. Sheer Cold
+14. Metal Burst
+15. Fling
+16. Trump Card
+17. Wring Out
+18. Punishment
+19. Crush Grip
+20. Selfdestruct
+21. Explosion
+22. Dream Eater
+23. Razor Wind
+24. Sky Attack
+25. Hyper Beam
+26. Hydro Cannon
+27. Blast Burn
+28. Frenzy Plant
+29. Giga Impact
+30. Rock Wrecker
+31. Roar of Time
+32. Skull Bash
+33. SolarBeam
+34. Spit Up
+35. Focus Punch
+36. Superpower
+37. Eruption
+38. Water Spout
+39. Sucker Punch
+40. Head Smash
+
+
+If you’ve got this far, you should have a good basic understanding of how the AI operates. It’s time to talk about doubles.
+5. Doubles AI - Target consideration
+
+
+Lets start with a continuation of the earlier example. I have 2 pokemon, Gengar1 and Gardevoir1; against Gastrodon1. 
+Note; simplified example, the scores are not exactly correct.
+
+
+  
+
+  
+
+
+
+(We’ll say that Gardevoir is Synchronize and both my pokemon are at full HP)
+
+
+  
+
+
+
+What does the AI do with Gastrodon here?
+
+
+The way Doubles works is actually quite simple - Gastrodon has its moves scored against both Gengar and Gardevoir. 
+
+
+E.g.
+
+
+
+
+Move
+	Move Score vs. Gengar
+	Waterfall
+	+0
+	Earthquake
+	-13
+	Recover
+	-11
+	Mirror Coat
+	+0
+	
+
+
+
+
+
+
+
+Move
+	Move Score vs. Gardevoir
+	Waterfall
+	-1 (waterfall is weaker than Earthquake)
+	Earthquake
+	+0
+	Recover
+	-11
+	Mirror Coat
+	+0
+	
+
+
+
+The doubles AI then does what the singles AI does. It picks a move that scores highest into each of the players’ pokemon.
+
+
+Gastrodon has 2 moves with +0 into both of my targets above (and each of those moves is 50/50 to be chosen).
+
+
+For simplicity - lets say Gastrodon chooses Waterfall (+0) vs. Gengar. But it chooses Mirror Coat (+0) vs. Gardevoir. Up until now, (apart from potentially running doubles AI logic on the scores) - everything is identical to singles.
+
+
+The doubles AI then must pick the highest scoring move it has for all available targets.
+
+
+In our example here, both moves scored +0 - so Gastrodon would randomly pick between Waterfall into Gengar, or Mirror Coat (Note; Mirror Coat doesnt have a target, but in the AI logic, it chose this against Gardevoir).
+
+
+—----
+
+
+Because the way the AI scores moves is random, this could have come out differently. e.g.
+________________
+
+
+
+
+Move
+	Move Score vs. Gengar
+	Waterfall
+	+0
+	Earthquake
+	-13
+	Recover
+	-11
+	Mirror Coat
+	+4 (Mirror Coat can randomly get +4)
+	
+
+
+
+
+
+
+
+Move
+	Move Score vs. Gardevoir
+	Waterfall
+	-1 (waterfall is weaker than Earthquake)
+	Earthquake
+	+0
+	Recover
+	-11
+	Mirror Coat
+	+0
+	
+
+
+
+In this scenario, the best move into Gengar scored +4 (Mirror Coat). 
+
+
+Because this is higher than the score vs Gardevoir, Gastrodon is guaranteed to Mirror Coat, “targeting” Gengar.
+
+
+—--
+
+
+Things can get even more complex though. Consider the following enemies in doubles:
+  
+
+
+
+  
+
+
+
+
+
+Both Arcanine and Ursaring will score moves against the player’s pokemon.
+
+
+However - they will also score moves against each other.
+
+
+Most of the time, the AI will never target its teammate (the moves will score -30, and the AI will never use them instead of using a move against the player). 
+
+
+But Gen4 doubles has a few hard-coded exceptions to this.
+
+
+In the example above, if Ursaring is Guts, Arcanine’s Will-O-Wisp scores +3 against Ursaring.
+
+
+That +3 score is very likely to “win” over the scores against the players pokemon.
+
+
+The AI will also do this (or similar things) to you if you are its ally in doubles. This is very important for games where you are in 2v2 playing with the AI.
+
+
+Tag Strategies In Doubles
+
+
+The following moves have special AI in doubles.
+
+
+The most important of these in the Frontier is Earthquake. Next most relevant are status moves, fire/electric/water immunities, and Trick Room.
+
+
+Most of the time, the AI will check to see if its ally has fainted. But there are some massive exceptions to this.
+
+
+You can see this in detail at: https://pokemow.com/Gen4/TrainerAI/
+
+
+1. Earthquake / Magnitude
+   1. Note: This check runs even if the most recent ally has fainted. That means if the most recent ally is Fire Type, EQ can still get -10.
+   2. If the ally is immune to EQ (flying, levitate, magnet rise) then score +2. 
+   3. If the ally has Fire, Electric, Poison, or Rock typing, score -10.
+      1. Yes - EQ does not check for Steel typing!
+      2. Yes - EQ does not care if the pokemon is overall neutral to EQ (e.g. Shuckle is neutral to EQ, but it is a Rock type, so it still does score -10).
+2. Skill Swap
+   1. If the AI is targeting the Player:
+      1. If the AI (user of skill swap) has Truant/Slow Start/ Klutz/ Stall, score +5
+      2. If the target (the player) has Shadow Tag / Pure Power / Huge Power / Solid Rock / Filter / Flower Gift, score +2
+   2. If the AI is targeting its ally:
+      1. If the ally has Truant or Slow Start, score +10
+      2. If the ally is a pure electric type, does not have levitate, and the user has levitate, score +2
+      3. If the user has Compound Eyes or No Guard and its ally has an “inaccurate powerful attack” - score +3
+3. Future Sight/ Doom Desire
+   1. The AI avoids using these moves if the partner is faster and also has the move.
+4. Rain Dance
+   1. Checks for if the pokemon (or its partner) have Hydration/ Dry Skin
+5. Sunny Day
+   1. Checks for if the pokemon (or its partner) have Leaf Guard/ Dry Skin/ Solar Power/ Flower Gift
+6. Hail
+   1. Checks for if the pokemon (or its partner) have Ice Body/ Snow Cloak/ the move Blizzard
+7. Sandstorm
+   1. Checks for if the pokemon (or its partner) have Rock-Type / Sand Veil
+8. Gravity
+   1. Checks ALL pokemon to see if they have levitate or flying type. Will prefer to use this move if enemies “fly”, and prefer to not use if it allies (including itself) do not “fly”
+9. Trick Room
+   1. Checks the exact speed order of all active pokemon. Wants to check if both of its pokemon are slower than both of the players.
+10. Follow Me
+   1. Complex check based on HP of attacker and partner
+11. Electric Moves
+   1. If it is Discharge, score almost the same as EQ - increase score if ally has volt absorb, motor drive. Decrease score if ally is water or flying typing (even if they are also ground). (If not water or flying), increase score if ally is ground.
+   2. If ally has Lightning Rod, score -1. Additional score -8 if ally is also ground.
+   3. If the enemy partner is lightning rod, score -10
+   4. If the Ally has Motor Drive, and its speed is not yet +6 , 37.5% for +3
+   5. If the Ally has Volt Absorb:
+      1. And full HP - score -10
+      2. And 75%-90% HP - 25% score +3
+      3. And 50%-75% HP - 50% score +3
+      4. Is under 50% HP - 75% score +3
+12. Fire Moves
+   1. If the move is Lava Plume:
+      1. If our ally is Dry Skin, score -3
+      2. If our ally is Flash Fire
+         1. And its not activated yet, score +3
+         2. And its already active, score +1
+      3. If our ally is Grass, Steel, Ice or Bug, score -10
+      4. None of the above; score -3
+   2. (not Lava Plume) If our Ally is flash fire (and has not yet activated the flash fire boost), score +3
+13. Water Moves
+   1. If the move is Surf, handle almost the same as EQ - check for Dry Skin/ Water Absorb on ally. Check for ally being Ground or Fire type. (does not check for Rock type)
+   2. If ally is storm drain, score -1
+   3. If enemy’s partner is storm drain, score -10
+   4. Ally is Water Absorb or Dry Skin
+      1. And full HP - score -10
+      2. And 75%-90% HP - 25% score +3
+      3. And 50%-75% HP - 50% score +3
+      4. Is under 50% HP - 75% score +3
+14. Helping Hand
+   1. If the partner knows helping hand, all damaging moves get a score of +1
+15. Will-O-Wisp
+   1. If Ally is Flash Fire, repeat fire move logic above
+   2. If ally:
+      1. Is guts
+      2. Is not status’d
+      3. Is not fire
+      4. Is not holding flame or toxic orb
+      5. Is at 81% HP or more
+                Then Score +5
+16. Thunder Wave
+   1. If partner is Ground, or has an ability that is not motor drive/ volt absorb - treat this identically to regular electric moves
+17. Toxic / Poison Status
+   1. If ally:
+      1. Has Poison Heal
+      2. Is not status’d
+      3. Is not holding flame or toxic orb
+      4. Is at 91% HP or lower 
+(Does not check for poison or steel typing)
+Then Score +5
+18. Swagger
+   1. If our ally is holding a lum or persim berry:
+      1. If the ally has an attack stat or +1 or lower:
+                        Score +3
+                (This does not check for abilities immune to confuse)
+19. Trick/ Switcheroo
+   1. This has no AI for the ally in gen4 except the typical -30
+20. Gastro Acid
+   1. If the ally is already “gastro acid’d” (suppressed ability), score -30
+   2. If the ally has truant or slow start, score +5
+   3. Otherwise no score change (this makes gastro acid on an ally in random scenarios somewhat likely)
+21. Acupressure
+   1. First, check if any of the ally’s stats are boosted to +6 (this does not mean acupressure would fail, but it is the check the AI runs) - if they are, score -30
+   2. Repeat step 1 but include the ability simple, if present on the ally
+   3. If ally is under 51% HP, score -1
+   4. If ally is above 90%, 68.8% score +2
+   5. Else (51-90% HP) - 34.4% for score +1
+
+
+6. Doubles AI - No Ally Move Prediction
+
+
+Consider the AI has the following pokemon:
+  
+
+  
+
+
+
+Both enemies have Trick Room here.
+
+
+Both enemies can use Trick Room if they each see it as the highest scoring move.
+
+
+In other words - The AI does not check what its ally is about to do.
+
+
+A similar thing can happen where e.g.
+1. One enemy uses sunny day, and then the other uses Rain Dance
+2. Both enemies use Gravity
+3. Both enemies use Hail
+4. Etc
+
+
+This also means - if the AI is your ally - it can easily do “something you don't want it to”.
+
+
+This is a small point but it's something newer players often wrongly assume about the AI.
+
+
+
+
+The next 3 sections address something that makes the gen4 doubles AI particularly deadly. Lets have a look.
+7. Doubles AI - Strongest move
+
+
+This might be the scariest part of gen4 doubles AI.
+
+
+The logic is actually very simple: It is applied on top of all the regular singles logic.
+
+
+If the attack deals the most damage to the target, when compared to all of the user’s moves and all of the ally’s moves (even if the ally has fainted):
+50% chance of score +1
+
+
+Let’s do an example so this is more obvious.
+
+
+Lets say my pokemon is Blissey1:
+  
+
+
+
+The enemy AI has Gengar1 and Aerodactyl1:
+  
+
+  
+
+
+
+Now, Gengar1 does 72 damage with a max roll vs blissey with Sludge bomb.
+
+
+Aerodactyl1 does 210 damage with Aerial Ace. (if blissey is on the field alone, of course rock slide does more)
+
+
+So: when Gengar is scoring Sludge Bomb. It sees that Aerodactly does more damage than it can with Sludge bomb. Gengar’s Sludge bomb can never get the “+1” score for being “strongest move on the team against blissey”.
+
+
+But, when Aerodactyl is scoring Aerial Ace, it sees that this is indeed the strongest move (stronger than any of Gengar’s attacks). So Aerial Ace has a 50% chance to get +1.
+
+
+The overall table then looks a bit like this:
+________________
+
+
+
+
+Gengar Move
+	Score Vs. Blissey1
+	Shadow Ball
+	-11 (-10 for immune type matchup; -1 for weaker than sludge bomb)
+	Sludge Bomb
+	+0
+	Spite
+	+0
+	Confuse Ray
+	+0
+	
+
+
+
+
+
+Aerodactyl Move
+	Score Vs. Blissey1
+	Rock Slide
+	-1 (-1 for weaker than aerial ace in doubles)
+	Aerial Ace
+	+1 (50% chance for +1 as overall strongest doubles attack)
+	Torment
+	+0
+	Taunt
+	+0
+	
+
+
+
+So, the AI specifically encourages the use of the strongest attack in doubles. 
+
+
+In singles, this Aerodactyl vs Blissey matchup would have kept the “strongest attack” at only +0. So Aerodactyl1 has a very good chance of badly throwing this matchup; and using torment/ taunt first. (Which could quite easily lead to blissey beating aerodactyl via sing or water pulse).
+
+
+This aggression, particularly since the aggression is partially random, is very deadly and very hard to play against. Usually, the best thing the AI can do is attack you in terms of increasing its own win chance.
+
+
+There is another consequence as well.
+
+
+This 50% chance for +1 is independent of whether or not the move KOs. Let's revisit Aerodactyl vs blissey again.
+
+
+Let’s say Blissey is at around 190 HP.
+
+
+Without this +1 chance, Aerodactyl sees blissey is in kill range of both aerial ace and rock slide. It will then randomly pick either move.
+
+
+In doubles, this +1 chance only applies to the strongest move if at all; and so Aerodactyl is much more likely to use the move with a better chance of killing blissey (the stronger move).
+
+
+I think Gamefreak “intended” for this check to be a “don’t waste damage check”; try to do the most damage to the best target. i.e.
+If pokemon A can deal 20% to pokemon C or 50% to pokemon D
+If pokemon B can deal 50% to pokemon C or 20% to Pokemon D
+
+
+In this case; we’d like A to target D and B to target C. That way, we’re just overall doing more damage. And that feels like the intention of this check.
+
+
+In reality, this check makes it very, very hard to predict the AI in doubles when you are healthy.
+
+
+The fact this AI can still run even when the ally has fainted is also an important consideration.
+
+
+Note: Explosion and Self-Destruct specifically never get a +1 for strongest overall move in doubles.
+8. Doubles AI - Type Effectiveness
+Note; this only applies to ATTACKING moves. Moves such as thunder wave are not affected
+
+
+The AI runs effectiveness checks in 2 passes:
+1. So long as the move cannot kill, sometimes reduce the chance of using not very effective moves (in a double battle when the ally is still alive)
+2. Sometimes increase the chance of using a super-effective move.
+
+
+The “Don’t use not very effective moves” check is honestly somewhat innocent. But it can lead to some funny moments. Consider the following matchup:
+
+
+We have Aggron1:
+
+
+  
+
+
+
+We are facing slaking1
+  
+
+
+
+Now the exact "don't use not very effective” Move AI in doubles is this:
+
+
+1. If the move does not KO the target
+   1. If the move is 0.5x:
+      1. 75% for score -1
+   2. If the move is 0.25x
+      1. 75% for score -2
+
+
+So Slaking’s AI looks like this (for simplicity, lets not include the 50% chance of +1 and assume slaking’s ally does more damage to aggron)
+
+
+
+
+Slaking Move
+	Score vs. Aggron1
+	Facade
+	-3 (-1 for being weaker than shadow claw, -2 for being x0.25 (75% chance))
+	Shadow Claw
+	-1 (-1 for being x0.5 (75% chance))
+	Slack Off
+	-11 (-8 for basic ai full hp; -3 for expert ai full hp)
+	Yawn
+	+0 (yawn has no AI logic at all)
+	
+
+If the scoring runs like this, Slaking will use Yawn. It will even use yawn if aggron is already asleep.
+
+
+This kind of scenario (where every single attack is not very effective) is not that common, but we should keep it in mind. Slaking is scoring unusually low into Aggron because of the type resistance on all of its moves.
+
+
+If we remove Yawn from slaking’s moveset, then Slaking becomes incredibly likely to target Aggron’s ally, simply because Aggron resists the move (assuming Aggron’s ally does not also resist both facade and shadow claw).
+
+
+Unfortunately, the 75% chance makes this difficult to form very safe plans around. And, fundamentally, this behavior is also probably a “buff” to the general skill level of the doubles AI in gen4 because of scenarios like this.
+
+
+—-------
+
+
+The next case is “super effective attack AI”
+
+
+Note; this check only runs on moves where the previous “highest damage on our side” check failed. But it can still run even if the AI definitely kills the target.
+
+
+More precisely this is the logic:
+1. This is an attack that deals damage, and the move did not get a +1 score as “highest damage by our side into the target”
+   1. The effectiveness of the attack is 2x
+      1. 61% chance of score +1
+   2. The effectiveness of the attack is 4x
+      1. 75% chance of score +1
+
+
+As a reminder, this “effectiveness” check is bugged with some interactions such as solid rock or adaptability. 
+
+
+Lets take a look at an example:
+
+I have Vespiquen4 out, the AI has Exploud4
+
+
+  
+
+  
+
+
+
+
+
+Damage calc:
+  
+
+
+
+For simplicity’s sake, let's pretend exploud4 has an AI ally that does more damage to Vespiquen than overheat so the 50% “+1 score for strongest overall move” isn't involved.
+
+
+Exploud Move
+	Score vs. Vespiquen4
+	Hyper Voice
+	-1 (weaker than overheat)
+	Overheat
+	+0 (strongest move; but didnt randomly get +1 for 2x super effective)
+	Surf
+	-1 (weaker than overheat)
+	Ice Beam
+	+0 (-1 for weaker than overheat; but also got +1 chance for 2x super effective)
+	
+
+The chance of this exact score table isn't high - its about 40% for overheat to fail to get +1 in “super effective doubles check”, and its also about 60% for ice beam to get +1 in “super effective doubles check”- so only about 24% overall.
+
+
+However, in this case, The AI has to pick between Ice beam and overheat. Both have a +0 score, and so it will be 50/50 what move it picks.
+
+
+If Ice Beam wins the 50/50, Exploud will Ice Beam Vespiquen. This would never happen in singles.
+
+
+That’s an example of the player being “helped” by the random Super Effective doubles AI. It’s not that common though (for the player to be helped by this).
+
+
+Arguably - this can be a problem. In a real battle, we may want to switch vespiquen out. Perhaps we want to switch to Flash Fire Houndoom. Well, Flash Fire Houndoom doesn’t want to get a 10% chance of being frozen.
+
+
+This can make switching against certain enemies very risky.
+
+
+—-
+
+
+What’s more common is something like this in doubles:
+
+
+Consider the matchup of Donphan2 (player) vs Blastoise2 (AI):
+  
+
+  
+
+
+
+Now, Blastoise probably will 2HKO Donphan with waterfall. But, in singles, this isnt actually a terrible matchup.
+
+
+In singles, Blastoise’s waterfall only gets a score of +0 (until donphan gets hit). This is often beaten by Double Team (a move the AI loves at high HP) and it can also be beaten by Aqua ring (a nearly useless move against donphan, but the AI is just a set of algorithms).
+
+
+TLDR - in singles, Donphan has a real chance of winning this, despite it being slower and despite the type matchup being against it.
+
+
+In doubles - it's a lot worse.
+
+
+Blastoise’s waterfall has a 61% chance of getting a score of +1 instead of +0, which can beat aqua ring and in some cases also beating Double Team. Suddenly, Blastoise is a lot more likely to attack much earlier, and simply 2HKO donphan.
+
+
+If blastoise’s ally doesn't do more damage than waterfall into donphan, Blastoise also has the chance of rolling 50% for +1 (although remember, if it does this, it cant also get +1 from super effective doubles AI). Suddenly, we’re talking about a 80% chance for Waterfall to score +1 (in singles, it only ever scores +0).
+
+
+TLDR - in doubles, Donphan is dramatically more likely to lose this.
+
+
+The lesson here is that super effective AI being applied often helps the doubles AI use attacks more often than it does in singles (compared to status moves).
+
+
+For high level Frontier play, and any kind of difficult romhack, you are probably most scared of the AI attacking you - particularly with semi-random moves - since the easiest way to start losing a match you should win is to suddenly start to get crit, frozen, paralyzed, flinched, etc.
+
+
+This also has another consequence; in a scenario where every move on the enemy kills your pokemon, in singles - the move is likely fully random. In doubles, there is going to be a bias towards super-effective kill moves (and moves that do the most overall damage).
+
+
+Both of the previous checks (best overall damage and prefer super effective moves) - are not part of default smart AI. They are part of regular doubles.
+
+
+This means that even if Smart AI is disabled (e.g. Round 1-4 of Factory Doubles) - the AI still has a preference for doing the most damage AND for using super effective attacks! This is why Factory Doubles is very hard in gen4.
+
+
+Beware Singles Assumptions
+
+
+You also want to be very, very careful in doubles. Consider the following pokemon:
+
+
+  
+
+
+
+In singles, this thing almost always uses Fake out on turn 1.
+
+
+Fake out has special AI to give it a +2 score on turn 1. Fake out probably does less damage than Zen Headbutt (so it gets -1 score to go to +2-1 = +1 score overall). But that +1 score should beat its other moves (unless e.g. zen headbutt can kill the target).
+
+
+In doubles - this may not be true.
+
+
+If medicham sees zen headbutt as the strongest overall move, or if it sees zen headbutt as super effective into a target - zen headbutt can also get a +1 score. Suddenly, it has tied with fake out at +1, and Fake out is no longer guaranteed on turn 1.
+
+
+Another warning example:
+  
+
+
+
+Honchkrow4 is famous for very rarely picking sucker punch.
+
+
+Sucker punch is not part of the “check for kill” AI. It also has a blanket 80% to get a -2 score no matter what.  It does also have a chance of 75% to get a +1 score, but that usually leaves sucker punch at -1. Rare, but sometimes seen.
+
+
+In doubles, Sucker Punch becomes quite a bit more common. If super effective +1 triggers, it can go to +0. Of course, super effective would mean night slash gets a boosted chance at +1 through crit AI too, but overall this makes Honchkrow4 a lot more likely to pick Sucker Punch in the scenario you’re actually afraid of (which is when it would be super effective against you).
+
+
+This is mostly a warning to people with massive hours in singles who haven't played much doubles in the Frontier - be careful about assuming these sets behave the same way!
+9. Doubles AI - Priority Preference
+This is a rare case
+
+
+For this case to trigger; the attack must be a priority attack (e.g. aqua jet, extremespeed) and it must also be the strongest attack into that target (as we saw in section 7).
+
+
+If this happens, instead of a 50% chance of a +1 score, instead its a 80.5% chance of a +1 score.
+
+
+Why is this rare? Because Priority attacks are weak. Almost every set that comes to my head when writing this has other attacks that are (almost certainly) dealing more damage.
+
+
+However, i recommend keeping this in mind. It’s a lot more likely to trigger in early factory rounds for a pokemon like Seel1:
+  
+
+
+
+Remember, Aqua jet/ ice shard still have to outdamage Seel ally’s best move in order to have a chance at 80.5% for +1.
+
+
+And in any kind of “difficult romhack” - probably also appear in the earlier game there also.
+10. Doubles AI - Multi-target moves
+I already covered this in the “Tag Strategies” section - but be really, really aware of this. It’s by far the most important thing to know in doubles - which is when the AI will not use e.g. Surf/ Earthquake, and when its guaranteed to use them.
+11. Doubles AI - Protect and Endure (and Fake Out)
+
+
+
+
+To over-generalize and slightly insult Trick Room, these are the best 3 moves in the game for doubles. They’re even better against the enemy AI.
+
+
+There’s basically 1 thing the AI does in doubles which is still pretty predictable - which is go for kills when it can. Kill moves still score +4 (sometimes +5 as we saw above) and +4 is still usually a high enough score to beat every other move as the chosen attack that turn.
+
+
+Fake Out needs no introduction really. Outside of brightpowder and a few other niche cases, this is the 1 chance you get to actually buy time in doubles and the 1 chance you get to really interrupt the enemy.
+
+
+Although not truly viable outside of some meme teams, the Fake Out roulette is also a very safe way of interacting with enemies. This features you having 3 pokemon, all with fake out. You use fake out with one of them, switch with one, and then keep repeating this. Every single turn a new fake out is ready to be used. The enemy is flinched forever. This is probably only viable/possible in Castle Multis for the Frontier.
+
+
+Credit to PChal:
+
+
+https://www.youtube.com/shorts/d0z2NBd7HSE
+
+
+
+
+Protect and Endure are when things get spicy though. If you have a pokemon about to die, an underleveled pokemon, or a pokemon that is just kinda pathetic, teach it protect/ endure and you can likely bait attacks from both enemies (so long as your partner isnt vulnerable to being KO’d).
+
+
+Obviously, this buys an entire free turn, and even after protect is used, it can maybe be used again. It’s obviously up to the player to find chances to switch, get 2 kills on 1 turn, and all the other well known strats that are a feature of high level PvE gameplay.
+
+
+Frontier players will be familiar with Level 1 Smeargle who abuses this to “guarantee” that trick room is setup on turn 1.
+
+
+Be careful though.
+
+
+If you are going to use “protect bait” - be super aware of what can go wrong. 
+
+
+The most famous issue in the frontier is something like this:
+  
+
+Giga drain obviously kills a level 2 Togekiss right?
+
+Yes. But Giga drain gets -3 80% of the time if its not very effective. 
+
+
+That’s not a problem in singles since:
++4 (kill move)
+-3 (giga drain on a resisted target)
+
+
+Is still +1 - out-scoring the other attacks.
+
+
+If you have a pokemon weak to Grass in the ally slot, suddenly Giga drain can get a +1 score into that instead through super effective AI. Suddenly Roserade2 is picking its target randomly.
+
+
+Now, you’re not going to lose to Roserade2 on its own, but you also dont want to be caught unawares by this in a critical scenario. Double check that your bait is going to work.
+
+
+12. Bug - Doubles AI - Spread Damage
+
+
+I struggle to find a way to call this that makes sense. From what i’ve seen, a massive number of people are totally unaware of this bug.
+
+
+This bug is basically the entire reason why my Castle Doubles team works so well: https://youtu.be/LFSj1LOvvZ4?t=67 You can see plenty of examples in this vod, but lets do a cleaner one.
+
+
+Here’s an example, and then a quick explanation.
+
+
+Lets say I’m using Golem4 in doubles.
+  
+
+
+
+And I’m facing Torterra2 and Entei4:
+
+
+  
+
+
+
+  
+
+
+
+(I know Golem is slower, please let's pretend quick claw activates, or the enemies both just do nothing for the purpose of the example).
+
+
+Lets say I use protect with my other pokemon
+
+
+Lets say I explode.
+
+
+Here are the calcs:
+
+
+252+ Atk Golem-4 Explosion (spread) vs. 168 HP / 168 Def Torterra-2: 172-203 (90.1 - 106.3%) -- 37.5% chance to OHKO
+
+
+252+ Atk Golem-4 Explosion (spread) vs. 0 HP / 0 Def Entei-4: 241-284 (126.8 - 149.5%) -- guaranteed OHKO
+
+
+What is going to happen?
+
+
+Here is what happens:
+
+
+1. Golem dies. Its hp gets set to 0 instantly.
+2. Entei4 dies. It is the fastest pokemon on the field, so it gets hit fist.
+3. Torterra2… dies. This is not a roll. The explosion spread damage is not applied to Torterra.
+
+
+
+
+Why does this happen? It’s because the Spread damage calculation is dynamic. When we “check to see if spread damage should apply” - what the game actually does is count the number of active battlers.
+
+
+If that count is 3 or 4 - its a doubles battle! Our spread attack is nerfed by 25%, as always.
+
+
+But if the count is 2 - its singles! (or the final 1v1 in a doubles battle) - there is no spread penalty.
+
+
+Note that Golem and entei die first, which is why Torterra2 takes single target damage.
+
+
+Exceptions and things to be aware of with spread damage 
+
+
+First up, lets pretend Torterra2 has a Quick claw. In this case, 20% of the time, quick claw activates on the explosion. This quick claw 20% chance has nothing to do with the quick claw for the “turn”. If quick claw activates on the explosion - Torterra gets hit before entei, and now torterra is being hit by spread damage and may live.
+
+
+The same can happen in the case of a speed tie. The spread damage target chance is going to be random.
+
+
+Trick Room operates similarly; under trick room, Torterra gets hit before entei. Torterra is “faster” under trick room.
+
+
+This isn’t unique to Explosion.
+
+
+Lets say I use surf, and kill my ally, and my ally is faster than the enemies; well, again, if there is a scenario where only 2 pokemon have not fainted, Surf takes on single target damage.
+
+
+It’s difficult to list out every possible interaction that can lead to this: but basically, be very careful about assuming spread damage in doubles! Pokemon fainting is not rare while the move is still playing out. And be aware that the order in which they get hit is subject to the speed on the field.
+
+
+This bug can work against you and work for you. It can mean you deal more damage with e.g. Earthquake and you can also take more damage from e.g. discharge.
+
+
+13. Magpie’s top 20 battle AI tips and insights
+
+
+I kinda struggle to know what to call this section. I have an unhealthy number of hours fighting the AI in gen4 frontier. This is a quick head dump on common important interactions (that are outside of the switch ai and doubles).
+
+
+I guess the most important point is: This is not a complete list of all AI interactions, don't assume you are an expert after this, this is just the biggest 20 things that come to my head.
+
+
+Also, of course, perhaps a future romhack emphasizes the AI on moves that aren't in (or are barely in) the frontier - in that case, this list probably won't include those moves!
+14. Strongest move; the fundamental law, and the moves that ignore it
+
+
+If you learn nothing else about AI, learn this. It will try to kill you with moves it thinks can kill you. It will use the highest damage roll for these moves.
+
+
+The moves that don't lookup kill AI are also essential to know. I listed them before but here they are again:
+
+
+Guillotine, Horn Drill, Counter, Fissure, Bide, Super Fang, Flail, Reversal, Present, Magnitude, Mirror Coat, Endeavor, Sheer Cold, Metal Burst, Fling, Trump Card, Wring Out, Punishment, Crush Grip, Selfdestruct, Explosion, Dream Eater, Razor Wind, Sky Attack, Hyper Beam, Hydro Cannon, Blast Burn, Frenzy Plant, Giga Impact, Rock Wrecker, Roar of Time, Skull Bash, SolarBeam, Spit Up, Focus Punch, Superpower, Eruption, Water Spout, Sucker Punch, Head Smash
+
+
+The AI will not necessarily use these moves, even if they would instantly knock you out.
+
+
+Here’s 2 famous examples:
+  
+
+
+
+Dragonite4 should be an absolutely terrifying pokemon. And it is. But, its also a bit predictable. Since it choice locks into a move on turn 1 (when it is almost always at full HP), it will basically never pick giga impact or superpower - even if they kill.
+
+
+  
+
+
+
+Rampardos4 is also an evil pokemon. But it's less evil than it should be. Again, superpower and giga impact are not getting chosen almost ever.
+
+
+  
+
+
+
+And here’s a counter-example. Empoleon4 isn't going to hydro cannon at full HP. But its not choice locked, a low hp Empoleon4 can totally use hydro cannon. It won't use it as a kill move, but it can easily use it as a regular attack - so long as none of its other moves can kill.
+15. Priority kill AI, and what beats Kill AI (Trick,4x type check)
+Some kill moves are always used. We went over this earlier - Quick Attack, Extremespeed (if they can kill) will always take precedent over a regular attack like water gun or flamethrower.
+
+
+It’s also important to be aware of moves that can get more than +4 score against you.
+
+
+These are moves that can be used by the AI instead of killing you. The most famous example is probably:
+  
+
+
+
+The AI is obsessed with Tricking a Choice scarf when possible. Trick + Choice Scarf is a +5 score interaction. Even if you are at 1hp, Porygon is going to use trick instead on the first turn.
+
+
+Here’s another one:
+
+
+  
+
+
+
+  
+
+What does Ampharos do against Pelipper?
+
+
+You would think it just uses thunderbolt, since that would kill Pelipper.
+
+
+However, thunder-wave can get a +3 score if the Player’s pokemon is Faster (pelipper is indeed faster).
+
+
+and , thunder wave can sometimes get another +2 score if its 4x super effective (even though it's not an attack) - that can take it up to +5 overall - leading to Ampharos using thunder wave instead of thunderbolt.
+
+
+This is pretty common as an interaction against gyarados but it does sometimes also come up with other pokemon:
+  
+
+
+
+What does Mamoswine3 do against Garchomp? Most of the time - use Hail. Hail is “4x super effective”, even though it doesn't target garchomp. Be aware of AI weirdness.
+
+
+If Mamoswine3 had Ice Body - Hail could get another +2 and equal the score of a Kill move against Garchomp.
+
+
+There are more cases, but honestly, beating Kill AI is indeed rare.
+16. Flaws in Kill AI (berries, revenge/avalanche/payback)
+So instead, let's talk about the flaws in the AI. This is covered earlier but lets repeat. Of course, all moves not included in kill AI can’t see kills but also:
+  
+
+  
+
+
+
+Froslass never kills Gliscor1 with Ice Punch (without a critical hit) because of Yache Berry.
+
+
+However, the AI does not include Yache berry in this calculation at all. So, the AI thinks that Ice Punch can kill Gliscor1 (without a critical hit) - because the berry is ignored.
+
+
+Perhaps more famous than that though is avalanche/payback/revenge
+
+
+  
+
+
+
+A lot of things die to 120 power Avalanche after a curse or 2. But Lapras doesn’t know Avalanche is 120 power, it will only ever assume its 60 power. In fact, Avalanche has pretty weird pseudo-random AI.
+
+
+The same applies to Revenge, Payback, etc. - If you open a damage calculator, it will say these moves KO you, but the AI will only use them for certain when the “unboosted” variants kill.
+  
+
+
+
+Ambipom is a good example of 2 separate flaws:
+1. Double hit is only seen to hit once, even though it actually has “double” this power.
+2. The AI does not correctly include life orb (or metronome) as items in the damage calculations.
+
+
+A number of other moves have surprising bugs, like Facade (when status’d) or recoil moves with the Reckless ability. Again, these were all covered earlier, but its essential to know when the AI is blind to these, and not put too much faith in the damage calc to alert to this.
+17. Setup AI
+
+
+The Setup AI works quite well in general. This refers to moves like Swords Dance, Double Team, Calm Mind, etc.
+
+
+These moves are generally preferred at higher HP (and often very preferred at max hp).
+
+
+They are also generally impossible to use at lower HP instead of regular attacks.
+
+
+Playing against setup AI is important. A broad rule for pokemon is to switch to your good type matchups. This can be an exception to that. It might be a very good idea to hit the enemy for ~40%, just to massively reduce the chance they use a setup move on the switch and then again on the following turn - and also to make sure you get damage in before they use the setup move.
+
+
+The true difficulty of the frontier (and Factory in particular) is juggling the chance of them being any set, and assessing the outcome for all these branching paths. Setup pokemon make this more interesting and harder to do.
+18. The special case: Curse
+Curse is an incredibly broken move compared to most setup AI. It basically does not care what the users’ HP is, which is rare. 
+
+
+This can be a blessing and a curse for the player. It can lead to easy wins, where an enemy curse user is getting low on HP and still stupidly spamming curse instead of attacking or healing.
+
+
+It can also lead to extremely scary scenarios, where the AI uses curse at middling HP, when its probably most dangerous to do so and then go into a recovery move.
+19. Ability checking; how it works
+
+
+This also causes a lot of confusion.
+
+
+Most of the time, the AI doesnt know your ability. It will assume you have a random ability that your pokemon could have. E.g. It will assume your Gliscor is either Hyper Cutter or Sand Veil. It wont know which one it is.
+  
+
+
+
+If the AI is considering using a move that cares about your ability (e.g. considering using Charm) - then it will simply guess.
+
+
+That means, if you have a Gliscor, then its probably 50% for Charm to score -10 into Gliscor (the enemy guessed you have hyper cutter) and 50% for Charm to score +0 into Gliscor (the enemy guessed you don’t have hyper cutter.
+
+
+The enemy will continue to randomly guess your ability until it sees undeniable evidence in text that you have an ability. 
+
+
+E.g. “Charm failed because hyper cutter etc”
+
+
+Once this text appears - it knows Gliscor is Hyper Cutter.
+
+
+However, if you switch gliscor out, and then back in - it will have completely forgotten Gliscor’s ability again.
+
+
+Frontier players will be most familiar with doing this on Skarmory:
+  
+
+
+
+
+
+Unknown Skarmory has sturdy 50% of the time. So if it is facing an AI set with an OHKO move, they will never even consider using that move 50% of the time.
+
+
+However, until the enemy sees the sturdy text - it can randomly try to OHKO skarmory. That’s a big problem if you were trying to switch e.g. Blissey into e.g. Articuno4, and you just got hit by Sheer Cold.
+
+
+And like with Gliscor - the AI will forget skarmory has sturdy every single time it switches out and back in.
+
+
+—
+
+
+Also important to know: the AI doesn’t do any kind of deductive reasoning. E.g.
+  
+
+
+
+Lets say I have a heatproof Bronzong-2. 
+
+
+Lets say an enemy Arcanine uses Flare Blitz and it is obvious from the lower damage that I am heatproof.
+
+
+The enemy doesn’t see this and go “oh bronzong is heatproof” like a human would.
+
+
+The enemy may still guess bronzong is Levitate - in fact, since my heatproof bronzong can never trigger the levitate text, the enemy will randomly assume my bronzong is levitate 50% of the time forever.
+
+
+—-
+
+
+What does this mean? It means that even if your pokemon has the “wrong” ability - it gets a bit of protection.
+
+
+This is maybe most famous with Lanturn. Volt Absorb Lanturn is way better than illuminate lanturn. But the fact the enemy sometimes thinks it is volt absorb can protect it against some damage.
+
+
+20. The general rule of status moves
+
+
+This is a short one. There are many exceptions, but most status moves get a score of +0, unless they are clearly useless.
+
+
+If you are new or dont want to spend ages looking at websites; you can assume the status moves (so long as they are not setup moves - which very likely break this) are probably stuck at a score of +0, and probably also tie with the strongest attack at +0.
+21. Substitute
+This is the most famous Frontier exploit.
+
+
+The AI is almost completely blind to the fact you have Substitute.
+
+
+This means e.g. If i have a substitute up, the enemy AI might just use thunder wave for 10 turns in a row against me. It will never learn or adjust, it will never understand that I am immune to thunder wave.
+
+
+This makes substitute arguably the best move in the entire game against the enemy AI. Combined with the fact that so many pokemon learn substitute - it makes substitute probably the single most used move in the frontier.
+
+
+This also applies to damage.
+
+
+Lets say I have a suicune behind a substitute. Suicune is at 1HP left. I am facing an enemy where they have an attack that deals 60 damage and an attack that deals 20.
+
+
+Because both moves “kill” suicune - both can be picked. Even though the weaker move isnt even going to break my substitute. The AI does not understand I even have a substitute, it just thinks i have a 1hp suicune.
+
+
+Of course substitute is also incredibly helpful to intentionally deal a very safe, predictable amount of damage to yourself, so you can enter range of one of the enemy’s kill moves. Then, once it sees that kill, you can safely switch into a pokemon that can take it.
+
+
+Substitute is also just the best safety net ever. It’s protection against Quick Claw while sweeping, its also protection against a single brightpowder miss.
+22. Speed Control
+This is probably the simplest AI case.
+
+
+The AI loves speed control. It loves making itself faster than you. If its doubles, that means making itself faster than both of your pokemon.
+
+
+Therefore, moves like thunder wave, Scary Face, Icy Wind, Agility, Trick Room - are all incredibly likely to be used if they would make the enemy faster than you.
+23. Impossible High Health moves (asterisk)
+
+
+This is connected to an earlier point about kill AI.
+
+
+Some of the deadliest moves in the entire game are:
+* Hyper beam
+* Superpower
+* Blast burn
+
+
+These moves cannot be chosen at full hp on an enemy unless the enemy has no other viable moves that score +0.
+
+
+Also, be careful of Truant + recharge - special interaction
+24. OHKO AI
+Here are some more extremely scary moves:
+* Sheer cold
+* Guillotine
+* Fissure
+* Horn Drill
+
+
+Unlike gen3, these moves do have AI. They give +1 25% of the time. That means for a pokemon like e.g. Donphan4:
+
+
+  
+
+
+
+
+
+Typically, it will be around 55-62% to pick Fissure.
+
+
+There’s not a lot you can do about OHKO moves. Sturdy is rare in gen4 and your best chance is probably to use an immunity or to use substitute to avoid it.
+25. High-crit AI
+
+
+
+
+So for high-crit moves:
+1. If they are neutral, 25% for +1 score
+2. If they are super effective, 50% for +1 score
+  
+  
+
+
+
+
+
+This is one of the most annoying aspects of the AI. Even if Machamp4 can e.g. hit a super effective Earthquake vs the player, its going to still have a chance to randomly Cross Chop - and if you have a switch-in to Earthquake, its unlikely that switch-in can also take a Cross Chop comfortably.
+
+
+(Machamp3 arguably even more annoying with High Crit on Stone Edge, combined with the natural type synergy on Rock-Fighting)
+
+
+The only thing you can do to counteract this is to have a pokemon in that resists or is immune to the high-crit moves, but thats often a luxury not afforded and it can make decision making incredibly tough for some of these high crit spammers.
+26. Countercoat
+The countercoat AI was bugged in generation 3 and this bug still exists in gen4.
+The bug is this: Counter and Mirrror Coat are supposed to check for physical and special types on the target, and make the move more likely to be used if detected.
+
+
+E.g. (intended) Use Counter more often against Tauros, since Normal is a Physical Type in gen1-3.
+
+
+But this check is backwards, so instead Counter is encouraged vs pokemon with Special types, and Mirror Coat is encouraged vs Pokemon with Physical Types.
+
+
+Obviously, gen4 is post-physical-special split. But this still remains somewhat useful.
+
+
+It means that, for example, on turn 1 that Latios is out (latios is dragon/psychic - 2 special types in gen3) - an enemy with Counter is very likely to use Counter and waste the turn.
+
+
+The AI also prefers to use counter/ Mirror Coat if you used an attack (of the category) on the previous turn - this check is not bugged.
+
+
+Countercoat is very rarely truly predictable though - the AI is only more likely to prefer to use it. But a successful countercoat hitting the player can obviously be devastating, so this is one to pay attention to.
+27. Explosion, Destiny Bond
+
+
+These moves are incredibly dangerous because almost always, we don't want to trade pokemon on the enemy’s terms. Trading can be ok, particularly in factory, but we would like to avoid it.
+
+
+We would particularly like to avoid trading in a 1v1 (or 2v2 in doubles) scenario - since a tie in the frontier is treated like a loss.
+
+
+Explosion/ Self-Destruct
+
+
+These are updated AI from gen3. A full-hp Explosion is now very rare - around 2%. Although “2%” might sound terrifyingly high if you are going for a very very long win streak.
+
+
+Things to be aware of with explosion:
+1. Explosion becomes more likely the lower in HP the enemy gets. And the really big turning point is 50% HP. if possible, do not hit an explosion enemy this low unless you are ok with them exploding or unless you are killing them on the next turn.
+2. The AI does not explode if they are on their last pokemon and you are not on yours. 
+   1. However, be careful of doubles. In a 2v2 doubles scenario - the AI will see “oh i have an ally still alive, i can explode”. Of course, in reality, explosion probably kills everything on the field. But, the rather simple ai algorithm doesnt care about that. Be extremely careful of explosion in endgame doubles.
+3. In the frontier, unless you have an incredibly specific team, you probably cant play around full HP explosion. This makes it one of the absolute biggest killers of big streaks.
+
+
+
+
+Destiny Bond
+
+
+Destiny bond is, in many ways, even scarier than explosion. Luckily, the distribution of the move is kinder in the frontier (Quick Claw destiny bond in particular) - but it still poses a serious risk in some scenarios, particularly in Factory.
+
+
+Some pointers on Dbond:
+1. At full HP, Dbond is stuck at -1. This means (unless other moves do nothing) you should never be surprised by a random full HP Dbond in the same way as explosion.
+2. Like Explosion, Dbond gets more likely at lower HP.
+3. Dbond does not check if this is the AI’s final pokemon.
+   1. This is why Dbond is so scary in the factory. It’s very common to win a Factory game 1-0. If that final pokemon has Dbond, particularly if its also faster, play the ending very carefully.
+4. The AI will happily spam Dbond. Obviously Dbond doesn’t fail if used in succession, but the is no logic like “oh i used Dbond last turn, the player didnt attack me, so i wont use it now”. The Dbond logic is purely about the remaining HP% of the user.
+
+
+28. Roar, Haze
+These are useful moves to know, even though they’re quite rare in the frontier.
+
+
+Haze
+
+
+Haze only cares if you get boosted to +3 or more in one of your stats.
+
+
+That means if you want to dodge haze but still use e.g. Dragon Dance - simply boost to +2 and then attack. Or, if you can OHKO at +3 - boost to +3, since the AI will only select Haze once it sees at the start of the turn you are at +3.
+
+
+Note: haze is still partially random. Even below a +3 boost its around 4% to be chosen.
+
+
+Roar
+
+
+Roar does the same +3 check as haze and the same logic applies there however;
+
+
+Roar also checks if the players’ pokemon has been in battle for more than 3 turns. This is obviously quite rare (most 1v1s end in 2 or 3 turns). 
+
+
+Once your pokemon has been in for 4 or more turns, there’s an 87.5% chance roar gets a score above +0 - making it very likely to be used.
+29. Healing - recover and rest
+
+
+So one of the biggest “bugs” (?) in the game is that for 50% healing moves. E.g. Recover, Milk Drink, Softboiled:
+
+
+If the AI is faster than the player, it will always get a -8 score.
+
+
+In other words; if the AI is faster, it will probably never use recover/ roost/ etc.
+
+
+This is up there with the most important AI interactions to know. Obviously, 50% healing is very strong so being certain about its behavior is nice.
+
+
+If the AI is slower than the player, the healing logic changes, and below 70% HP the AI becomes incredibly likely to use it.
+
+
+Rest works in a slightly different way. Rest can be used even if the user is faster, however for rest to be used:
+1. When faster, the user really needs to be below 40% HP most of the time
+2. When slower, its below 60% HP
+
+
+You are unlikely to trigger rest in most scenarios where its bad for you - when the AI is faster than you. This is because if you 3hko, you will kill on the next rest loop. If you 2hko, this also wont matter. The problem is really the 4hko, where you are likely bringing the AI into a HP range around 20-30 after 3 attacks, although even now you will likely win as soon as you trigger a crit, and you’ll likely have at least 9 chances at that crit.
+
+
+Slow enemies using rest is far more common but also far easier to manipulate and take advantage of, since 40% isnt that hard to deal. Once they rest, you can deal a bit more than 40%, and then use the additional time to setup or potentially switch.
+30. Endure Reversal
+
+
+These enemies are very deadly, because most of them run salac also.
+  
+
+
+
+2 Key insights here:
+
+
+1. Reversal does not have Kill AI. Reversal doesnt even do proper damage comparison.
+   1. Instead Reversal just gets:
+      1. -1 score above 33%HP
+      2. +0 between 20-33% HP
+      3. 61% +1 score from 8-20% HP
+      4. +1 score below 8% HP
+So long as the AI is faster than the target. If the AI is slower, it never gets a guaranteed +1, and the HP ranges shift from (33,20) -> (60,40)
+   2. This means when faster than the reversal user, be very careful about doing a non-killing amount of damage if its below 60% HP.
+   3. Of course, below 20% HP (if it is faster), reversal becomes pretty likely to outscore every other regular attack (unless that attack can kill). Except…
+2. Endure has really dumb AI.
+   1. Endure AI never cares about using Endure 2 or 3 times in a row. This isnt considered (and can actually make playing against a low HP endure enemy very scary
+   2. Endure scoring:
+      1. Above 35% - always score -1
+      2. 4-35% - always 72.7% for Score +1
+      3. Below 4% - always score -1
+
+
+Basically, you dont want to know heracross to below 35% HP, unless that is going to guaranteed knock it out or you have some other way of dealing with a low HP Heracross4 (e.g. quick attack, or its already paralyzed, or whatever).
+
+
+Misplaying into Endure-reversal (or endure-flail) is a really good way to lose incredibly fast. Do everything you can to avoid it.
+
+
+My tip; if you cant avoid knocking it to the 4-35% range, then try to deal 25-35% (avoiding salac) on the same turn its going to see a kill next. If Megahorn/EQ see a kill against you, it will never endure over that.
+
+
+Still - you are guaranteed to lose to these sets, particularly in factory, if you play long enough.
+31. U-Turn
+
+
+U-Turn is a contender for the most complicated AI behavior in the game.
+
+
+Here are some pointers on U-turn:
+1. The AI will not U-turn if U-turn is resisted (-1 score technically)
+2. U-Turn does have regular kill AI
+3. If the user has a super effective move vs the target; U-Turn is very unlikely (-2 score)
+4. U-Turn  is more likely at high HP. The more damage you deal, the less likely they will U-Turn
+5. U-Turn is more likely if the AI is faster than the target.
+
+
+
+
+However the real mess of U-Turn is the damage comparison. The “use every single move on the team against the target (the U-Turn user will use these moves)” comes back (from post-ko switch AI).
+
+
+If no other pokemon has a stronger move than the U-Turn user’s best move - then its very unlikely to U-Turn no matter what.
+
+
+Obviously, in frontier we deal a lot with incomplete information. This makes U-Turn tricky to predict and tricky to prevent. 
+
+
+Luckily, the vast majority of U-Turn users are bad. And ironically, the best U-Turn user is unlikely to trigger the “post KO” switch logic:
+
+
+  
+
+32. Facade
+
+
+Facade is broken:
+1. Facade’s damage check is broken
+2. Facade does have Smart AI, but it checks if the target has a status condition, not the user. This is a bug
+
+
+Because facade rarely wins “strongest damage” with its broken damage check, facade isnt a big concern. For facade to be used, the user probably has to have it as their best stab attack:
+
+
+  
+
+
+
+Or, the player’s pokemon needs to be status’d. Forcing Facade to be used (when the enemy AI is not status’d itself) is probably a good idea, but be careful about different attacking moves potentially getting a tie at a +0 score.
+33. Weather and Solarbeam
+
+
+Few points here:
+1. The gen3 weather bug does not exist in gen4.
+2. Solarbeam does not have kill AI in gen4.
+3. The AI can be stupid with solarbeam; its essentially used a bit randomly. Do not assume an enemy with sunny day + solarbeam is going to sunny day first (like a human would).
+
+
+34. Disable And Encore
+
+
+Disable is a rare but incredibly annoying move. The AI really likes to spam it, and can easily do this even if you have not used a move yet.
+
+
+Encore specifically is encouraged after disable, and also strongly encouraged if its faster and it fits a pre-defined list of moves that the enemy just used.
+
+
+Dewgong2 is evil, but, thankfully, stuck at the base 70 speed tier (and also as a human you can totally just switch).
+
+
+  
+
+35. Protect
+
+
+Gen4 fixes the famous Gen3 protect counter bug, and also removes the guaranteed +1 score when the protect counter is at 0.
+
+
+Protect remains an annoying move of course, and has 2 notable users:

@@ -22259,13 +22259,7 @@
     {
       "name": "Skier Anas (OPTIONAL, HAIL)",
       "split": "Candice Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "check_hp"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,

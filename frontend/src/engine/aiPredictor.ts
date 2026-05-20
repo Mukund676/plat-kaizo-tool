@@ -3,20 +3,26 @@
  *
  * Gen 4 Trainer AI move-probability engine.
  *
- * Based on the logic documented in gen4_trainer_ai.md.txt.
+ * Based on comprehensive AI documentation:
+ *   - gen4_trainer_ai.md.txt: Detailed flag behaviors, move-specific scoring
+ *   - Gen 4 AI Mechanics Guide.txt: Switch AI logic, type matchups, damage calculations
+ *
  * Implements all 12 flags:
- *   basic            → Basic Flag
- *   eval_att         → Evaluate Attack Flag
- *   expert           → Expert Flag
- *   setup_first_turn → Setup First Turn Flag
- *   risky            → Risky Flag
- *   damage_prio      → Prioritize Extremes Flag
- *   baton_pass       → Baton Pass Flag
- *   tag_strategy     → Tag Strategy Flag (singles: only opponent-targeting logic)
- *   check_hp         → Check HP Flag
- *   weather          → Weather Flag
- *   harassment       → Harassment Flag
- *   status           → Prioritize Status Flag (Kaizo extra)
+ *   basic            → Basic Flag (discourage wasted/self-harming moves)
+ *   eval_att         → Evaluate Attack Flag (prioritize raw damage)
+ *   expert           → Expert Flag (conditional encouragement based on HP/speed/situation)
+ *   setup_first_turn → Setup First Turn Flag (prioritize setup on turn 1)
+ *   risky            → Risky Flag (50% chance of +2 for risky moves)
+ *   damage_prio      → Prioritize Extremes Flag (~61% chance of +2 for zero-damage/status)
+ *   baton_pass       → Baton Pass Flag (prioritize setup, Protect, Baton Pass)
+ *   tag_strategy     → Tag Strategy Flag (double battle partner awareness)
+ *   check_hp         → Check HP Flag (HP-based phase adjustments)
+ *   weather          → Weather Flag (set weather on turn 1 if not active)
+ *   harassment       → Harassment Flag (50% chance of +2 for disruptive moves)
+ *   status           → Prioritize Status Flag (Kaizo extra; encourage status-inflicting)
+ *
+ * Uses Monte Carlo simulation (10,000 trials) for realistic stochastic move selection
+ * with proper tie-breaking via random selection among equally-scored moves.
  */
 
 import { calculate, Pokemon, Move, Field, Generations } from '@smogon/calc';
@@ -117,6 +123,79 @@ const ZERO_DAMAGE_EFFECTS = new Set([
   'Flail', 'Reversal', 'Endeavor', 'Super Fang',
   'Trump Card', 'Crush Grip', 'Wring Out', 'Punishment', 'Magnitude',
   'Present',
+]);
+
+/** Nightmare and Dream Eater (Special basic flag effects) */
+const NIGHTMARE_MOVES = new Set(['Nightmare']);
+const DREAM_EATER_MOVES = new Set(['Dream Eater']);
+
+/** Belly Drum (special > 50% HP requirement) */
+const BELLY_DRUM_MOVES = new Set(['Belly Drum']);
+
+/** Stat-reducing moves that may be penalized by Basic Flag */
+const STAT_REDUCE_MOVES = new Set([
+  'Growl', 'Scary Face', 'Leer', 'Tail Whip', 'String Shot', 'Screech',
+  'Metal Sound', 'Fake Tears', 'Captivate', 'Charm', 'Sand Attack',
+  'Smokescreen', 'Sweet Scent', 'Feather Dance', 'Close Combat',
+]);
+
+/** Stat reset/copy/swap moves (Haze, Psych Up, Heart Swap) */
+const STAT_SWAP_MOVES = new Set(['Haze', 'Psych Up', 'Heart Swap']);
+
+/** OHKO moves (Horn Drill, Fissure, Sheer Cold, Guillotine) */
+const OHKO_MOVES = new Set(['Horn Drill', 'Fissure', 'Sheer Cold', 'Guillotine']);
+
+/** Moves that force switches (Roar, Whirlwind, Dragon Tail, etc.) */
+const FORCE_SWITCH_MOVES = new Set([
+  'Roar', 'Whirlwind', 'Dragon Tail', 'Trick Room', 'Teleport',
+]);
+
+/** Screen / Protective moves (Reflect, Light Screen, Mist, Safeguard) */
+const SCREEN_MOVES = new Set([
+  'Reflect', 'Light Screen', 'Mist', 'Safeguard', 'Tailwind',
+]);
+
+/** Disable / Encore / Torment / similar "last move" effects */
+const DISABLE_MOVES = new Set(['Disable', 'Encore', 'Torment']);
+
+/** Snore / Sleep Talk (require being asleep) */
+const SLEEP_DEPENDENT_MOVES = new Set(['Snore', 'Sleep Talk']);
+
+/** Lock On / Mean Look / Foresight / Perish Song / etc. */
+const LOCK_MOVES = new Set([
+  'Lock On', 'Mean Look', 'Foresight', 'Perish Song', 'Miracle Eye',
+  'Heal Block', 'Gastro Acid',
+]);
+
+/** Curse (stat or damage-over-time depending on type) */
+const CURSE_MOVES = new Set(['Curse']);
+
+/** Hazard-setting moves (Spikes, Toxic Spikes, Stealth Rock) */
+const HAZARD_MOVES = new Set(['Spikes', 'Toxic Spikes', 'Stealth Rock']);
+
+/** Future Sight / Doom Desire (delayed attacks) */
+const DELAYED_DAMAGE_MOVES = new Set(['Future Sight', 'Doom Desire']);
+
+/** Moves that affect multiple turns or have complex conditions */
+const COMPLEX_STATUS_MOVES = new Set([
+  'Substitute', 'Ingrain', 'Mud Sport', 'Water Sport', 'Camouflage',
+  'Power Trick', 'Lucky Chant', 'Aqua Ring', 'Magnet Rise',
+]);
+
+/** Variable-type moves (their behavior varies by conditions) */
+const VARIABLE_TYPE_MOVES = new Set([
+  'Weather Ball', 'Hidden Power', 'Natural Gift', 'Judgment',
+]);
+
+/** Moves with special damage scaling (percentage of HP, target weight, etc.) */
+const SPECIAL_SCALING_MOVES = new Set([
+  'Water Spout', 'Eruption', 'Gyro Ball', 'Low Kick', 'Grass Knot',
+]);
+
+/** Moves with recoil damage */
+const RECOIL_MOVES = new Set([
+  'Head Smash', 'Brave Bird', 'Double-Edge', 'Flare Blitz', 'Submission',
+  'Take Down', 'Volt Tackle', 'Wood Hammer', 'Close Combat', 'Superpower',
 ]);
 
 /** Self-Destruct / Explosion group */
@@ -319,13 +398,7 @@ const DESIRABLE_ABILITIES = new Set([
 // Internal helpers
 // ────────────────────────────────────────────────────────────────────────────
 
-/**
- * p() helper: deterministic expected-value contribution for UI-stable scoring.
- * (probability-weighted delta, instead of per-render RNG sampling)
- */
-function p(prob: number, val: number): number {
-  return prob * val;
-}
+const MONTE_CARLO_ITERATIONS = 10_000;
 
 /** Build a @smogon/calc Pokemon from a BattleMon */
 function makePokemon(mon: BattleMon): Pokemon {
@@ -750,18 +823,112 @@ function applyBasicFlag(
 
     // Confusion moves
     if (CONFUSE_MOVES.has(mv)) {
-      if (playerMon.isConfused) scores[mv] -= 5;
-      if (playerMon.ability === 'Own Tempo' || playerMon.hasSafeguard) scores[mv] -= 10;
+      if (playerMon.isConfused) { scores[mv] -= 5; continue; }
+      if (playerMon.ability === 'Own Tempo' || playerMon.hasSafeguard) { scores[mv] -= 10; continue; }
+    }
+
+    // Nightmare: -10 if target not asleep or has Magic Guard
+    if (NIGHTMARE_MOVES.has(mv)) {
+      if (playerMon.status !== 'slp' || playerMon.ability === 'Magic Guard') {
+        scores[mv] -= 10; continue;
+      }
+    }
+
+    // Dream Eater: -8 if not asleep, -10 if type immune
+    if (DREAM_EATER_MOVES.has(mv)) {
+      if (playerMon.status !== 'slp') { scores[mv] -= 8; continue; }
+      if (hasTypeImmunity(moveType, playerMon.types)) { scores[mv] -= 10; continue; }
+    }
+
+    // Belly Drum: -10 if user HP <= 50% (rounded down)
+    if (BELLY_DRUM_MOVES.has(mv)) {
+      if (enemyMon.hpPercent <= 50) { scores[mv] -= 10; continue; }
     }
 
     // Recovery moves: -8 if at full HP
     if (RECOVERY_MOVES.has(mv) && enemyMon.hpPercent >= 100) {
-      scores[mv] -= 8;
+      scores[mv] -= 8; continue;
     }
 
-    // Self-Destruct / Explosion
+    // Screen/Protective moves (Reflect, Light Screen, Mist, Safeguard): -8 if already active
+    if (SCREEN_MOVES.has(mv)) {
+      // Note: Full implementation requires field state tracking (hasSafeguard, hasReflect, etc.)
+      // Simplified check: assume Safeguard tracks multi-turn effects
+      if (playerMon.hasSafeguard && (mv === 'Safeguard' || mv === 'Mist')) {
+        scores[mv] -= 8; continue;
+      }
+    }
+
+    // OHKO moves: -10 if target immune or higher level
+    if (OHKO_MOVES.has(mv)) {
+      if (hasTypeImmunity(moveType, playerMon.types)) { scores[mv] -= 10; continue; }
+      if (playerMon.ability === 'Sturdy' && enemyMon.ability !== 'Mold Breaker') {
+        scores[mv] -= 10; continue;
+      }
+      if (playerMon.level > enemyMon.level) { scores[mv] -= 10; continue; }
+    }
+
+    // Moves that force switches: -10 if target has no switch or has Suction Cups
+    if (FORCE_SWITCH_MOVES.has(mv)) {
+      if (playerMon.isLastPokemon) { scores[mv] -= 10; continue; }
+      if (playerMon.ability === 'Suction Cups' && enemyMon.ability !== 'Mold Breaker') {
+        scores[mv] -= 10; continue;
+      }
+    }
+
+    // Leech Seed: -10 if target is Grass-type or has Magic Guard
+    if (LEECH_SEED_MOVES.has(mv)) {
+      const pTypes = playerMon.types ?? [];
+      if (pTypes.includes('Grass') || playerMon.ability === 'Magic Guard') {
+        scores[mv] -= 10; continue;
+      }
+    }
+
+    // Substitute: -10 if user < 26% HP; -8 if already substituted
+    if (mv === 'Substitute') {
+      if (enemyMon.hpPercent < 26) { scores[mv] -= 10; continue; }
+      // Note: tracking Substitute status requires battle state; skipped for now
+    }
+
+    // Snore / Sleep Talk: -8 if not asleep
+    if (SLEEP_DEPENDENT_MOVES.has(mv)) {
+      if (enemyMon.status !== 'slp') { scores[mv] -= 8; continue; }
+    }
+
+    // Hazard-setting moves: -10 if target is last Pokémon (no switch aftermath)
+    if (HAZARD_MOVES.has(mv)) {
+      if (playerMon.isLastPokemon) { scores[mv] -= 10; continue; }
+      // Max layer check requires field state; would need to track Spikes/Toxic Spikes/Stealth Rock layers
+    }
+
+    // Weather-setting moves: -8 if weather already active
+    if (Object.keys(WEATHER_MOVES).includes(mv)) {
+      const targetWeather = WEATHER_MOVES[mv];
+      if (targetWeather === fieldState.weather) { scores[mv] -= 8; continue; }
+    }
+
+    // Future Sight / Doom Desire: -12 if already pending (would require field state tracking)
+    // Skipped for now as it requires battle history
+
+    // Baton Pass: -10 if user is last Pokémon
+    if (mv === 'Baton Pass') {
+      if (enemyMon.isLastPokemon) { scores[mv] -= 10; continue; }
+    }
+
+    // Trick / Switcheroo: -10 if target has Sticky Hold or no item
+    if (mv === 'Trick' || mv === 'Switcheroo') {
+      if (playerMon.ability === 'Sticky Hold' || !playerMon.item) {
+        scores[mv] -= 10; continue;
+      }
+    }
+
+    // Helping Hand: -10 if not a double battle
+    if (mv === 'Helping Hand') {
+      if (!fieldState.isDoubleBattle) { scores[mv] -= 10; continue; }
+    }
+
+    // Self-Destruct / Explosion: -10 if Damp (unless Mold Breaker)
     if (SELFDESTRUCT_MOVES.has(mv)) {
-      // Damp ability
       if (playerMon.ability === 'Damp' && enemyMon.ability !== 'Mold Breaker') {
         scores[mv] -= 10; continue;
       }
@@ -772,29 +939,41 @@ function applyBasicFlag(
       }
     }
 
-    // Stat-boosting moves: -10 if Speed + Trick Room; -10 if already at +6
-    const attackBoostingMove = ATTACK_BOOST_MOVES.has(mv);
-    const speedBoostingMove  = SPEED_BOOST_MOVES.has(mv);
-    if (attackBoostingMove || speedBoostingMove) {
-      if (speedBoostingMove && isTrickRoom) scores[mv] -= 10;
-      const atkStage = (enemyMon.boosts?.atk ?? 0);
-      if (attackBoostingMove && atkStage >= 6) scores[mv] -= 10;
-    }
-    if (DUAL_BOOST_MOVES.has(mv)) {
-      if (mv === 'Dragon Dance' && isTrickRoom) scores[mv] -= 10;
-      if ((enemyMon.boosts?.atk ?? 0) >= 6) scores[mv] -= 10;
+    // Stat-boosting moves: -10 if Speed + Trick Room
+    if ((SPEED_BOOST_MOVES.has(mv) || (DUAL_BOOST_MOVES.has(mv) && mv === 'Dragon Dance')) && isTrickRoom) {
+      scores[mv] -= 10; continue;
     }
 
-    // Leech Seed: -10 if target is Grass or already Seeded (we only check type here)
-    if (LEECH_SEED_MOVES.has(mv)) {
-      if ((playerMon.types ?? []).includes('Grass') || playerMon.ability === 'Magic Guard') {
-        scores[mv] -= 10;
-      }
+    // Stat-boosting moves: -10 if already at max stage
+    if (ATTACK_BOOST_MOVES.has(mv)) {
+      if ((enemyMon.boosts?.atk ?? 0) >= 6) { scores[mv] -= 10; continue; }
+    }
+    if (SPEED_BOOST_MOVES.has(mv)) {
+      if ((enemyMon.boosts?.spe ?? 0) >= 6) { scores[mv] -= 10; continue; }
+    }
+    if (DUAL_BOOST_MOVES.has(mv)) {
+      const boosts = enemyMon.boosts ?? {};
+      if (mv === 'Dragon Dance' && (boosts.atk ?? 0) >= 6) { scores[mv] -= 10; continue; }
+      if (mv === 'Dragon Dance' && (boosts.spe ?? 0) >= 6) { scores[mv] -= 10; continue; }
+      if (mv === 'Bulk Up' && (boosts.atk ?? 0) >= 6) { scores[mv] -= 10; continue; }
+      if (mv === 'Bulk Up' && (boosts.def ?? 0) >= 6) { scores[mv] -= 10; continue; }
+      if (mv === 'Calm Mind' && (boosts.spa ?? 0) >= 6) { scores[mv] -= 10; continue; }
+      if (mv === 'Calm Mind' && (boosts.spd ?? 0) >= 6) { scores[mv] -= 10; continue; }
+      if (mv === 'Cosmic Power' && (boosts.def ?? 0) >= 6) { scores[mv] -= 10; continue; }
+      if (mv === 'Cosmic Power' && (boosts.spd ?? 0) >= 6) { scores[mv] -= 10; continue; }
     }
   }
 }
 
-/** Evaluate Attack Flag — prioritize raw damage. */
+/** Evaluate Attack Flag — prioritize raw damage.
+ *
+ * Philosophy: Raw damage output trumps all other considerations.
+ * References: gen4_trainer_ai.md.txt "Evaluate Attack Flag" section
+ * Key Probabilities:
+ *   - Self-Destruct/Explosion: 80% chance of -2
+ *   - Focus Punch/Sucker Punch/Future Sight: 80% chance of -2, ~33.6% chance of +4 for KO
+ *   - Quad-effective damage: 31.25% chance of +2
+ */
 function applyEvalAttFlag(
   scores: Record<string, number>,
   moves: string[],
@@ -819,16 +998,14 @@ function applyEvalAttFlag(
 
     // Self-Destruct: no scoring bonus for KO
     if (SELFDESTRUCT_MOVES.has(mv)) {
-      // 80% chance of -2
-      scores[mv] += p(0.8, -2);
+      if (Math.random() < 0.8) scores[mv] += -2;
       continue;
     }
 
     // Focus Punch / Sucker Punch / Future Sight: ~33.6% chance of +4 for KO
     if (EVAL_PENALIZED_MOVES.has(mv) && !SELFDESTRUCT_MOVES.has(mv)) {
-      if (isKO) scores[mv] += p(0.336, 4);
-      // 80% chance of -2
-      scores[mv] += p(0.8, -2);
+      if (isKO && Math.random() < 0.336) scores[mv] += 4;
+      if (Math.random() < 0.8) scores[mv] += -2;
       continue;
     }
 
@@ -854,7 +1031,17 @@ function applyEvalAttFlag(
   }
 }
 
-/** Expert Flag — conditional encouragement/discouragement based on situation. */
+/** Expert Flag — conditional encouragement/discouragement based on situation.
+ *
+ * Philosophy: Add nuance to move selection based on HP, speed, ability matchups.
+ * References: gen4_trainer_ai.md.txt "Expert Flag" section
+ * Key Probabilities:
+ *   - Paralysis when user is slower: 92.2% chance of +3
+ *   - Sleep setup: 50% chance of +1 if user knows Dream Eater/Nightmare
+ *   - Recovery at >= 70% HP: ~88.3% chance of -3
+ *   - Speed boost when user is slower: ~72.7% chance of +3
+ *   - Various HP-conditional adjustments with specific thresholds
+ */
 function applyExpertFlag(
   scores: Record<string, number>,
   moves: string[],
@@ -872,7 +1059,7 @@ function applyExpertFlag(
     // Sleep moves: if enemy knows Dream Eater/Nightmare → 50% +1
     if (SLEEP_MOVES.has(mv)) {
       if (moves.includes('Dream Eater') || moves.includes('Nightmare')) {
-        scores[mv] += p(0.5, 1);
+        if (Math.random() < 0.5) scores[mv] += 1;
       }
     }
 
@@ -885,20 +1072,20 @@ function applyExpertFlag(
 
     // Paralysis moves
     if (PARALYSIS_MOVES.has(mv)) {
-      if (!eFaster) scores[mv] += p(0.922, 3);  // enemy is slower → encourage para
+      if (!eFaster && Math.random() < 0.922) scores[mv] += 3;  // enemy is slower → encourage para
       if (enemyMon.hpPercent <= 70) scores[mv] -= 1;
     }
 
     // Confusion moves: HP-based
     if (CONFUSE_MOVES.has(mv) && mv !== 'Swagger' && mv !== 'Flatter') {
-      if (playerMon.hpPercent <= 70) scores[mv] += p(0.5, -1);
+      if (playerMon.hpPercent <= 70 && Math.random() < 0.5) scores[mv] += -1;
       if (playerMon.hpPercent <= 50) scores[mv] -= 1;
       if (playerMon.hpPercent <= 30) scores[mv] -= 1;
     }
-    if (mv === 'Flatter') scores[mv] += p(0.5, 1);
+    if (mv === 'Flatter' && Math.random() < 0.5) scores[mv] += 1;
     if (mv === 'Swagger') {
       if (!moves.includes('Psych Up')) {
-        scores[mv] += p(0.5, 1);
+        if (Math.random() < 0.5) scores[mv] += 1;
       }
     }
 
@@ -909,55 +1096,55 @@ function applyExpertFlag(
       // Enemy is faster: -8 and done
       if (eFaster) { scores[mv] -= 8; continue; }
       // HP >= 70%: ~88.3% chance of -3 and done
-      if (enemyMon.hpPercent >= 70) { scores[mv] += p(0.883, -3); continue; }
+      if (enemyMon.hpPercent >= 70) { if (Math.random() < 0.883) scores[mv] += -3; continue; }
       // Otherwise: small bonus if opponent lacks Snatch
-      scores[mv] += p(0.922, 2);
+      if (Math.random() < 0.922) scores[mv] += 2;
     }
 
     // Stat-boosting (attacking stats): HP-based
     if (ATTACK_BOOST_MOVES.has(mv)) {
       const stage = enemyMon.boosts?.atk ?? 0;
-      if (stage >= 3) scores[mv] += p(0.609, -1);
-      if (enemyMon.hpPercent >= 100) scores[mv] += p(0.5, 2);
+      if (stage >= 3 && Math.random() < 0.609) scores[mv] += -1;
+      if (enemyMon.hpPercent >= 100 && Math.random() < 0.5) scores[mv] += 2;
       if (enemyMon.hpPercent > 70) { /* no further changes */ }
       else if (enemyMon.hpPercent < 40) scores[mv] -= 2;
-      else scores[mv] += p(0.844, -2);
+      else if (Math.random() < 0.844) scores[mv] += -2;
     }
 
     // Speed boosts: discourage if already faster, encourage if slower
     if (SPEED_BOOST_MOVES.has(mv)) {
       if (eFaster) scores[mv] -= 3;
-      else scores[mv] += p(0.727, 3);
+      else if (Math.random() < 0.727) scores[mv] += 3;
     }
 
     // Self-Destruct / Explosion / Memento: HP-based
     if (SELFDESTRUCT_MOVES.has(mv) || mv === 'Memento') {
       if (enemyMon.hpPercent >= 80) {
-        if (eFaster) scores[mv] += p(0.805, -3);
-        else scores[mv] += p(0.805, -1);
+        if (eFaster && Math.random() < 0.805) scores[mv] += -3;
+        else if (!eFaster && Math.random() < 0.805) scores[mv] += -1;
       } else if (enemyMon.hpPercent > 50) {
-        scores[mv] += p(0.805, -1);
+        if (Math.random() < 0.805) scores[mv] += -1;
       } else if (enemyMon.hpPercent > 30) {
-        scores[mv] += p(0.5, 1);
+        if (Math.random() < 0.5) scores[mv] += 1;
       } else {
-        scores[mv] += p(0.805, 1);
+        if (Math.random() < 0.805) scores[mv] += 1;
       }
     }
 
     // Evasion boosts: HP-based encouragement
     if (EVASION_BOOST_MOVES.has(mv)) {
-      if (enemyMon.hpPercent >= 90) scores[mv] += p(0.609, 3);
+      if (enemyMon.hpPercent >= 90 && Math.random() < 0.609) scores[mv] += 3;
       const stage = enemyMon.boosts?.eva ?? 0;
-      if (stage >= 3) scores[mv] += p(0.5, -1);
+      if (stage >= 3 && Math.random() < 0.5) scores[mv] += -1;
     }
 
     // Destiny Bond: starts -1; slow→more chances; HP-based
     if (mv === 'Destiny Bond') {
       scores[mv] -= 1;
       if (!eFaster) {
-        if (enemyMon.hpPercent <= 70) scores[mv] += p(0.5, 1);
-        if (enemyMon.hpPercent <= 50) scores[mv] += p(0.5, 1);
-        if (enemyMon.hpPercent <= 30) scores[mv] += p(0.609, 2);
+        if (enemyMon.hpPercent <= 70 && Math.random() < 0.5) scores[mv] += 1;
+        if (enemyMon.hpPercent <= 50 && Math.random() < 0.5) scores[mv] += 1;
+        if (enemyMon.hpPercent <= 30 && Math.random() < 0.609) scores[mv] += 2;
       }
     }
 
@@ -965,14 +1152,14 @@ function applyExpertFlag(
     // encourage if opponent does
     if (mv === 'Role Play' || mv === 'Skill Swap') {
       if (DESIRABLE_ABILITIES.has(enemyMon.ability ?? '')) scores[mv] -= 1;
-      if (DESIRABLE_ABILITIES.has(playerMon.ability ?? '')) scores[mv] += p(0.805, 2);
+      if (DESIRABLE_ABILITIES.has(playerMon.ability ?? '') && Math.random() < 0.805) scores[mv] += 2;
     }
 
     // Pluck / Bug Bite
     if (mv === 'Pluck' || mv === 'Bug Bite') {
       if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
-      if ((fieldState.turnNumber ?? 1) === 1) scores[mv] += p(0.75, 1);
-      scores[mv] += p(0.5, 1);
+      if ((fieldState.turnNumber ?? 1) === 1 && Math.random() < 0.75) scores[mv] += 1;
+      if (Math.random() < 0.5) scores[mv] += 1;
     }
 
     // U-turn
@@ -983,12 +1170,12 @@ function applyExpertFlag(
         if (enemyMon.isLastPokemon) {
           scores[mv] += 2;
         } else {
-          if (hasSuperEffectiveDamagingMove(moves, playerMon)) scores[mv] += p(0.75, -2);
-          if (playerMon.hpPercent > 70) scores[mv] += p(0.75, 1);
-          else if (playerMon.hpPercent > 30) scores[mv] += p(0.5, 1);
-          else scores[mv] += p(0.25, 1);
+          if (hasSuperEffectiveDamagingMove(moves, playerMon) && Math.random() < 0.75) scores[mv] += -2;
+          if (playerMon.hpPercent > 70 && Math.random() < 0.75) scores[mv] += 1;
+          else if (playerMon.hpPercent > 30 && Math.random() < 0.5) scores[mv] += 1;
+          else if (playerMon.hpPercent <= 30 && Math.random() < 0.25) scores[mv] += 1;
           if (eFaster) scores[mv] += 1;
-          else scores[mv] += p(0.5, 1);
+          else if (Math.random() < 0.5) scores[mv] += 1;
         }
       }
     }
@@ -1003,7 +1190,7 @@ function applyExpertFlag(
     // Payback
     if (mv === 'Payback') {
       if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
-      if (!eFaster && enemyMon.hpPercent >= 30) scores[mv] += p(0.75, 1);
+      if (!eFaster && enemyMon.hpPercent >= 30 && Math.random() < 0.75) scores[mv] += 1;
     }
 
     // Assurance
@@ -1011,18 +1198,23 @@ function applyExpertFlag(
       if (isResistedOrImmuneMove(mv, enemyMon, playerMon)) scores[mv] -= 1;
       if (!eFaster) {
         if (enemyMon.ability === 'Rough Skin') {
-          scores[mv] += p(0.5, 1);
+          if (Math.random() < 0.5) scores[mv] += 1;
         } else if (enemyMon.item === 'Jaboca Berry' || enemyMon.item === 'Rowap Berry') {
-          scores[mv] += p(0.5, 1);
+          if (Math.random() < 0.5) scores[mv] += 1;
         } else {
-          scores[mv] += p(0.25, 1);
+          if (Math.random() < 0.25) scores[mv] += 1;
         }
       }
     }
   }
 }
 
-/** Setup First Turn Flag — prioritize setup on turn 1. */
+/** Setup First Turn Flag — prioritize setup moves on turn 1.
+ *
+ * Philosophy: Establish advantage early via stat boosts or field manipulation.
+ * References: gen4_trainer_ai.md.txt (mentioned in various sections)
+ * Behavior: ~68.75% chance of +2 for setup/status moves on turn 1 only.
+ */
 function applySetupFirstTurnFlag(
   scores: Record<string, number>,
   moves: string[],
@@ -1031,36 +1223,51 @@ function applySetupFirstTurnFlag(
   if ((fieldState.turnNumber ?? 1) !== 1) return;
   for (const mv of moves) {
     if (SETUP_FIRST_TURN_EFFECTS.has(mv) || isStatusMove(mv)) {
-      scores[mv] += p(0.6875, 2);
+      if (Math.random() < 0.6875) scores[mv] += 2;
     }
   }
 }
 
-/** Risky Flag — 50% chance of +2 for risky moves. */
+/** Risky Flag — encourage high-risk moves with uncertain outcomes.
+ *
+ * Philosophy: Less cautious AI takes chances on unreliable moves.
+ * References: gen4_trainer_ai.md.txt (risky moves include sleep, OHKO, etc.)
+ * Behavior: 50% chance of +2 for moves in RISKY_MOVES set.
+ */
 function applyRiskyFlag(
   scores: Record<string, number>,
   moves: string[],
 ): void {
   for (const mv of moves) {
     if (RISKY_MOVES.has(mv)) {
-      scores[mv] += p(0.5, 2);
+      if (Math.random() < 0.5) scores[mv] += 2;
     }
   }
 }
 
-/** Prioritize Extremes Flag — ~61% chance of +2 for zero-damage / status moves. */
+/** Prioritize Extremes Flag — favor status and zero-damage moves.
+ *
+ * Philosophy: Emphasize non-damage strategies (status, setup, disruption).
+ * References: gen4_trainer_ai.md.txt (Prioritize Damage / Prioritize Extremes)
+ * Behavior: ~61% chance of +2 for zero-damage or status moves.
+ */
 function applyPrioritizeExtremesFlag(
   scores: Record<string, number>,
   moves: string[],
 ): void {
   for (const mv of moves) {
     if (ZERO_DAMAGE_EFFECTS.has(mv) || isStatusMove(mv)) {
-      scores[mv] += p(0.61, 2);
+      if (Math.random() < 0.61) scores[mv] += 2;
     }
   }
 }
 
-/** Baton Pass Flag — prioritize setup, Protect, Baton Pass. */
+/** Baton Pass Flag — prioritize setup, Protect, and Baton Pass.
+ *
+ * Philosophy: Chain stat boosts and pivot strategically via Baton Pass.
+ * References: gen4_trainer_ai.md.txt "Baton Pass Flag" section
+ * Behavior: Prioritize setup moves, Protect/Detect, then Baton Pass based on stages.
+ */
 function applyBatonPassFlag(
   scores: Record<string, number>,
   moves: string[],
@@ -1070,7 +1277,6 @@ function applyBatonPassFlag(
   if (enemyMon.isLastPokemon) return; // exit if no remaining party
 
   const eFaster = (enemyMon.speed ?? 0) > 0; // simplified
-  const hasBatonPass = moves.includes('Baton Pass');
   const turn = fieldState.turnNumber ?? 1;
 
   for (const mv of moves) {
@@ -1102,19 +1308,23 @@ function applyBatonPassFlag(
       if (atkStage >= 3) { scores[mv] += 3; continue; }
       if (atkStage === 2) { scores[mv] += 2; continue; }
       if (atkStage === 1) { scores[mv] += 1; continue; }
-      if (!hasBatonPass) scores[mv] += p(0.3125, 0); // 31.25% chance of no effect
       continue;
     }
 
     // Step 4: all other moves — 92% chance of +3
     if (!isDamaging) {
-      scores[mv] += p(0.92, 3);
+      if (Math.random() < 0.92) scores[mv] += 3;
     }
   }
   void eFaster; // suppress unused-var warning
 }
 
-/** Tag Strategy Flag (singles mode: only opponent-targeting logic applies). */
+/** Tag Strategy Flag — double battle partner awareness.
+ *
+ * Philosophy: Coordinate with partner; avoid hitting them; use synergistic moves.
+ * References: gen4_trainer_ai.md.txt "Tag Strategy Flag" section
+ * Behavior: In doubles, avoid partner-targeting moves; boost moves benefiting partner.
+ */
 function applyTagStrategyFlag(
   scores: Record<string, number>,
   moves: string[],
@@ -1160,6 +1370,16 @@ function applyTagStrategyFlag(
           scores[mv] -= 10;
         }
       }
+
+      if (mv === 'Surf') {
+        const partnerHasWaterAbsorb = partnerAbility === 'Water Absorb';
+        const partnerHasDrySkin = partnerAbility === 'Dry Skin';
+        if (partnerHasWaterAbsorb || partnerHasDrySkin) {
+          scores[mv] += 2;
+        } else {
+          scores[mv] -= 10;
+        }
+      }
     }
 
     const md = getMoveEntry(mv);
@@ -1181,10 +1401,10 @@ function applyTagStrategyFlag(
 
       // Priority +1 moves: 80.5% chance of +1
       if (PRIORITY_PLUS_ONE_MOVES.has(mv)) {
-        scores[mv] += p(0.805, 1);
+        if (Math.random() < 0.805) scores[mv] += 1;
       } else {
         // 50% chance of +1 if highest damage
-        scores[mv] += p(0.5, 1);
+        if (Math.random() < 0.5) scores[mv] += 1;
       }
 
       // If KO on max roll: slight boost
@@ -1197,7 +1417,12 @@ function applyTagStrategyFlag(
   }
 }
 
-/** Check HP Flag — phase 1 (attacker HP) and phase 2 (target HP). */
+/** Check HP Flag — HP-dependent phase adjustments.
+ *
+ * Philosophy: Adjust move selection based on attacker and target HP percentages.
+ * References: gen4_trainer_ai.md.txt "Check HP Flag" section
+ * Behavior: Phase 1 (user HP) and Phase 2 (target HP) with specific thresholds.
+ */
 function applyCheckHPFlag(
   scores: Record<string, number>,
   moves: string[],
@@ -1212,7 +1437,7 @@ function applyCheckHPFlag(
 
     // Self-Destruct / Explosion: if >= 31% → 80.5% chance -2
     if (SELFDESTRUCT_MOVES.has(mv)) {
-      if (eHP >= 31) scores[mv] += p(0.805, -2);
+      if (eHP >= 31 && Math.random() < 0.805) scores[mv] += -2;
     }
 
     // Recovery / Rest / Destiny Bond / Flail / Reversal / Memento / Healing Wish / Lunar Dance
@@ -1221,7 +1446,7 @@ function applyCheckHPFlag(
       mv === 'Flail' || mv === 'Reversal' || mv === 'Memento' ||
       mv === 'Healing Wish' || mv === 'Lunar Dance'
     ) {
-      if (eHP >= 71) scores[mv] += p(0.805, -2);
+      if (eHP >= 71 && Math.random() < 0.805) scores[mv] += -2;
     }
 
     // Stat-boosting/reducing moves and setup at < 70% HP → 80.5% chance -2
@@ -1232,7 +1457,7 @@ function applyCheckHPFlag(
       mv === 'Light Screen' || mv === 'Reflect' || mv === 'Mist' ||
       mv === 'Safeguard' || mv === 'Belly Drum'
     ) {
-      if (eHP < 70) scores[mv] += p(0.805, -2);
+      if (eHP < 70 && Math.random() < 0.805) scores[mv] += -2;
     }
 
     // Low-priority HP moves: if <= 30% → 80.5% chance -2
@@ -1241,7 +1466,7 @@ function applyCheckHPFlag(
       mv === 'Metal Burst' || mv === 'Water Spout' || mv === 'Eruption' ||
       mv === 'Mud Sport' || mv === 'Water Sport' || mv === 'Acupressure'
     ) {
-      if (eHP <= 30) scores[mv] += p(0.805, -2);
+      if (eHP <= 30 && Math.random() < 0.805) scores[mv] += -2;
     }
 
     // ── Phase 2: Target's HP ────────────────────────────────────────────────
@@ -1256,7 +1481,7 @@ function applyCheckHPFlag(
         mv === 'Acupressure' || mv === 'Perish Song'
       )
     ) {
-      scores[mv] += p(0.805, -2);
+      if (Math.random() < 0.805) scores[mv] += -2;
     }
 
     // Status/OHKO/misc at <= 30% target HP → 80.5% chance -2
@@ -1266,13 +1491,19 @@ function applyCheckHPFlag(
         mv === 'Horn Drill' || mv === 'Fissure' || mv === 'Sheer Cold' || mv === 'Guillotine' ||
         SELFDESTRUCT_MOVES.has(mv)
       ) {
-        scores[mv] += p(0.805, -2);
+        if (Math.random() < 0.805) scores[mv] += -2;
       }
     }
   }
 }
 
-/** Weather Flag — set weather on turn 1 if not already active (+5). */
+/** Weather Flag — establish weather advantage on turn 1.
+ *
+ * Philosophy: Set beneficial weather early if not already active.
+ * References: gen4_trainer_ai.md.txt "Weather Flag" section
+ * Behavior: On turn 1 only, +5 to weather-setting moves if weather not active.
+ * Note: This flag only executes on turn 1 (potential game bug replicated here).
+ */
 function applyWeatherFlag(
   scores: Record<string, number>,
   moves: string[],
@@ -1293,21 +1524,27 @@ function applyWeatherFlag(
   void enemyMon; // suppress unused-var warning
 }
 
-/** Harassment Flag — 50% chance of +2 for disruptive move effects. */
+/** Harassment Flag — favor disruptive non-damaging moves.
+ *
+ * Philosophy: Emphasize status conditions, stat reductions, and field disruption.
+ * References: gen4_trainer_ai.md.txt "Harassment Flag" section
+ * Behavior: 50% chance of +2 for moves in HARASSMENT_MOVES set.
+ */
 function applyHarassmentFlag(
   scores: Record<string, number>,
   moves: string[],
 ): void {
   for (const mv of moves) {
     if (HARASSMENT_MOVES.has(mv)) {
-      scores[mv] += p(0.5, 2);
+      if (Math.random() < 0.5) scores[mv] += 2;
     }
   }
 }
 
-/**
- * Prioritize Status Flag (Kaizo extra):
- * Encourage status-inflicting moves when the target has no current status.
+/** Prioritize Status Flag — Kaizo extension encouraging status moves.
+ *
+ * Philosophy: Additional emphasis on status-inflicting moves (Kaizo romhack feature).
+ * Behavior: +2 to sleep/poison/paralysis/burn moves if target has no status.
  */
 function applyStatusFlag(
   scores: Record<string, number>,
@@ -1396,24 +1633,13 @@ export function predictEnemyMove(
   });
   const result = calculateMoveProbabilities(playerMon, enemyMon, field, aiFlags, fieldState);
   return moves.map((mv) => {
-    const base = 100;
-    const deltas = result.deterministicDeltas[mv];
-    const basicDelta = deltas?.basic ?? 0;
-    const evalDelta = deltas?.eval_att ?? 0;
-    const deterministicTotal = deltas ? Object.values(deltas).reduce((sum, value) => sum + value, 0) : 0;
-    const expertExpectedDelta = result.expertExpectedDelta[mv] ?? 0;
-    const finalScore = base + deterministicTotal + expertExpectedDelta;
     const probability = result.probabilities[mv] ?? 0;
     return {
       move: mv,
-      score: parseFloat(finalScore.toFixed(2)),
+      score: parseFloat(probability.toFixed(2)),
       probability: parseFloat(probability.toFixed(1)),
       breakdown: [
-        `Base: ${base}`,
-        `Basic: ${basicDelta >= 0 ? '+' : ''}${basicDelta}`,
-        `Evaluate Attack: ${evalDelta >= 0 ? '+' : ''}${evalDelta}`,
-        `Expert (Expected): ${expertExpectedDelta >= 0 ? '+' : ''}${expertExpectedDelta.toFixed(2)}`,
-        `Final: ${parseFloat(finalScore.toFixed(2))}`,
+        `Monte Carlo Simulations: ${MONTE_CARLO_ITERATIONS}`,
         `Win Probability: ${parseFloat(probability.toFixed(1))}%`,
       ],
     };
@@ -1448,7 +1674,6 @@ export function calculateMoveProbabilities(
   fieldState: FieldState = {},
 ): CalculateMoveProbabilitiesResult {
   const moves = enemyMon.moves.filter(Boolean);
-  const baseScores: Record<string, number> = Object.fromEntries(moves.map((mv) => [mv, 100]));
   const deterministicDeltas: CalculateMoveProbabilitiesResult['deterministicDeltas'] = Object.fromEntries(
     moves.map((mv) => [mv, {
       basic: 0,
@@ -1466,27 +1691,20 @@ export function calculateMoveProbabilities(
       fog: 0,
     }]),
   );
+  const winCounts: Record<string, number> = Object.fromEntries(moves.map((mv) => [mv, 0]));
+
   const effectiveFieldState: FieldState = {
     ...fieldState,
     isDoubleBattle: (fieldState.isDoubleBattle ?? false) || Boolean(aiFlags.double_battle),
     isTrickRoom: fieldState.isTrickRoom ?? false,
   };
 
-  const applyAndTrackDelta = (
-    key: keyof CalculateMoveProbabilitiesResult['deterministicDeltas'][string],
-    scorer: () => void,
-  ) => {
-    const before = Object.fromEntries(moves.map((mv) => [mv, baseScores[mv]]));
-    scorer();
-    for (const mv of moves) {
-      deterministicDeltas[mv][key] += baseScores[mv] - before[mv];
-    }
-  };
+  for (let i = 0; i < MONTE_CARLO_ITERATIONS; i += 1) {
+    const trialScores: Record<string, number> = Object.fromEntries(moves.map((mv) => [mv, 100]));
 
-  if (aiFlags.basic) {
-    applyAndTrackDelta('basic', () => {
+    if (aiFlags.basic) {
       applyBasicFlag(
-        baseScores,
+        trialScores,
         moves,
         enemyMon,
         playerMon,
@@ -1494,104 +1712,87 @@ export function calculateMoveProbabilities(
         effectiveFieldState,
         Boolean(effectiveFieldState.isTrickRoom),
       );
-    });
-  }
+    }
 
-  if (aiFlags.eval_att) {
-    applyAndTrackDelta('eval_att', () => {
-      applyEvalAttFlag(baseScores, moves, enemyMon, playerMon, field);
-    });
-  }
+    if (aiFlags.eval_att) {
+      applyEvalAttFlag(trialScores, moves, enemyMon, playerMon, field);
+    }
 
-  if (aiFlags.expert) {
-    applyAndTrackDelta('expert', () => {
-      applyExpertFlag(baseScores, moves, enemyMon, playerMon, effectiveFieldState);
-    });
-  }
+    if (aiFlags.expert) {
+      applyExpertFlag(trialScores, moves, enemyMon, playerMon, effectiveFieldState);
+    }
 
-  if (aiFlags.setup_first_turn) {
-    applyAndTrackDelta('setup_first_turn', () => {
-      applySetupFirstTurnFlag(baseScores, moves, effectiveFieldState);
-    });
-  }
+    if (aiFlags.setup_first_turn) {
+      applySetupFirstTurnFlag(trialScores, moves, effectiveFieldState);
+    }
 
-  if (aiFlags.risky) {
-    applyAndTrackDelta('risky', () => {
-      applyRiskyFlag(baseScores, moves);
-    });
-  }
+    if (aiFlags.risky) {
+      applyRiskyFlag(trialScores, moves);
+    }
 
-  if (aiFlags.damage_prio) {
-    applyAndTrackDelta('damage_prio', () => {
-      applyPrioritizeExtremesFlag(baseScores, moves);
-    });
-  }
+    if (aiFlags.damage_prio) {
+      applyPrioritizeExtremesFlag(trialScores, moves);
+    }
 
-  if (aiFlags.baton_pass) {
-    applyAndTrackDelta('baton_pass', () => {
-      applyBatonPassFlag(baseScores, moves, enemyMon, effectiveFieldState);
-    });
-  }
+    if (aiFlags.baton_pass) {
+      applyBatonPassFlag(trialScores, moves, enemyMon, effectiveFieldState);
+    }
 
-  if (aiFlags.tag_strategy) {
-    applyAndTrackDelta('tag_strategy', () => {
-      applyTagStrategyFlag(baseScores, moves, enemyMon, playerMon, field, effectiveFieldState);
-    });
-  }
+    if (aiFlags.tag_strategy) {
+      applyTagStrategyFlag(trialScores, moves, enemyMon, playerMon, field, effectiveFieldState);
+    }
 
-  if (aiFlags.check_hp) {
-    applyAndTrackDelta('check_hp', () => {
-      applyCheckHPFlag(baseScores, moves, enemyMon, playerMon);
-    });
-  }
+    if (aiFlags.check_hp) {
+      applyCheckHPFlag(trialScores, moves, enemyMon, playerMon);
+    }
 
-  if (aiFlags.weather) {
-    applyAndTrackDelta('weather', () => {
-      applyWeatherFlag(baseScores, moves, enemyMon, effectiveFieldState);
-    });
-  }
+    if (aiFlags.weather) {
+      applyWeatherFlag(trialScores, moves, enemyMon, effectiveFieldState);
+    }
 
-  if (aiFlags.harassment) {
-    applyAndTrackDelta('harassment', () => {
-      applyHarassmentFlag(baseScores, moves);
-    });
-  }
+    if (aiFlags.harassment) {
+      applyHarassmentFlag(trialScores, moves);
+    }
 
-  if (aiFlags.status) {
-    applyAndTrackDelta('status', () => {
-      applyStatusFlag(baseScores, moves, playerMon);
-    });
-  }
+    if (aiFlags.status) {
+      applyStatusFlag(trialScores, moves, playerMon);
+    }
 
-  if (effectiveFieldState.hasFog) {
-    applyAndTrackDelta('fog', () => {
-      applyFogModifier(baseScores, moves);
-    });
+    if (effectiveFieldState.hasFog) {
+      applyFogModifier(trialScores, moves);
+    }
+
+    const winner = pickWinningMove(moves, trialScores, true);
+    if (winner) winCounts[winner] += 1;
   }
 
   const probabilities: MoveProbabilityMap = Object.fromEntries(moves.map((mv) => [mv, 0]));
   const expertExpectedDelta: Record<string, number> = Object.fromEntries(moves.map((mv) => [mv, 0]));
-  const winner = pickWinningMove(moves, baseScores);
-  if (winner) probabilities[winner] = 100;
 
   for (const mv of moves) {
-    probabilities[mv] = parseFloat((probabilities[mv] ?? 0).toFixed(6));
+    const pct = (winCounts[mv] / MONTE_CARLO_ITERATIONS) * 100;
+    probabilities[mv] = parseFloat(pct.toFixed(6));
   }
 
   return { probabilities, deterministicDeltas, expertExpectedDelta };
 }
 
-function pickWinningMove(moves: string[], scores: Record<string, number>): string | null {
+function pickWinningMove(moves: string[], scores: Record<string, number>, breakTiesRandomly = false): string | null {
   if (moves.length === 0) return null;
-  let winner = moves[0];
-  let topScore = scores[winner] ?? Number.NEGATIVE_INFINITY;
-  for (let i = 1; i < moves.length; i += 1) {
+  let topScore = Number.NEGATIVE_INFINITY;
+  const tied: string[] = [];
+  for (let i = 0; i < moves.length; i += 1) {
     const mv = moves[i];
     const score = scores[mv] ?? Number.NEGATIVE_INFINITY;
     if (score > topScore) {
       topScore = score;
-      winner = mv;
+      tied.length = 0;
+      tied.push(mv);
+    } else if (score === topScore) {
+      tied.push(mv);
     }
   }
-  return winner;
+  if (tied.length === 0) return null;
+  if (!breakTiesRandomly) return tied[0];
+  return tied[Math.floor(Math.random() * tied.length)];
 }

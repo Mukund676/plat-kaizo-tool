@@ -133,27 +133,40 @@ def _build_raw_trainer_lookup(xl):
     """
     Parse the RAW TRAINER DATA sheet and return a dict keyed by lower-cased
     trainer name mapping to a list of active flag strings.
-
-    The 8 authoritative columns (per the spec) are:
-        Prioritize Effectiveness, Evaluate Attacks, Expert,
-        Prioritize Status, Risky Attacks, Prioritize Damage,
-        Utilize Weather, Harassment
     """
     df = xl.parse('RAW TRAINER DATA', header=0)
+    
+    # FIX 1: Strip invisible whitespace from Excel column headers to ensure dict matching
+    df.columns = [str(c).strip() for c in df.columns]
+    
     lookup = {}  # name_lower → list[str]
     for _, row in df.iterrows():
         name = _val(row.get('Name'))
         if not name or name == '-':
             continue
+            
         active = []
         for col, short in AI_FLAG_COLS.items():
             v = row.get(col)
-            try:
-                if v and not pd.isna(v) and bool(v):
+            
+            # FIX 2: Robust Boolean Parsing (Handles strings like "False" or "0")
+            if pd.isna(v):
+                continue
+            if isinstance(v, str):
+                if v.strip().upper() in ('TRUE', '1', 'YES', 'Y'):
                     active.append(short)
-            except (TypeError, ValueError):
-                pass
-        lookup[name.lower()] = active
+            else:
+                if bool(v):
+                    active.append(short)
+                    
+        key = name.lower()
+        
+        # FIX 3: Prevent Overwriting!
+        # Generic trainers or earlier variants often reuse names but drop flags.
+        # Only overwrite if the new entry has MORE flags (preserving the ultimate boss state).
+        if key not in lookup or len(active) > len(lookup[key]):
+            lookup[key] = active
+            
     return lookup
 
 
@@ -342,10 +355,18 @@ def parse_trainer_db(xl):
             if 'PLATINUM KAIZO' in name.upper():
                 continue
 
+            # Resolve ai_flags from RAW TRAINER DATA, then ensure doubles/multi-battle
+            resolved_flags = list(_flags_for_split_name(name, raw_lookup))
+            # If the trainer name explicitly mentions DOUBLE or MULTI BATTLE, ensure the
+            # canonical short key 'double_battle' is present.
+            if re.search(r"\bDOUBLE\b|MULTI\s*BATTLE", name, re.IGNORECASE):
+                if 'double_battle' not in resolved_flags:
+                    resolved_flags.append('double_battle')
+
             clean_trainers.append({
                 'name': name,
                 'split': sheet_name,
-                'ai_flags': _flags_for_split_name(name, raw_lookup),
+                'ai_flags': resolved_flags,
                 'pokemon': trainer['pokemon'],
             })
 

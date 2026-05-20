@@ -174,10 +174,6 @@ const NATURE_EFFECTS: Record<string, { plus: BoostKey; minus: BoostKey }> = {
 
 const NATURES = Object.keys(NATURE_EFFECTS)
 
-const NATURE_BY_PAIR: Record<string, string> = Object.fromEntries(
-  Object.entries(NATURE_EFFECTS).map(([nature, effect]) => [`${effect.plus}|${effect.minus}`, nature]),
-)
-
 const kaizoData = kaizoRaw as KaizoData
 const speciesOptions = Object.keys(kaizoData.pokemon).sort()
 const moveOptions = Object.keys(kaizoData.moves).sort()
@@ -200,7 +196,7 @@ const AI_FLAG_KEY_MAP: Record<string, keyof AIFlags> = {
   'Prioritize Effectiveness': 'basic',
   'Evaluate Attacks': 'eval_att',
   Expert: 'expert',
-  'Setup First Turn': 'setup_first_turn',
+  'Setup First Turn': 'status',
   'Risky Attacks': 'risky',
   'Prioritize Damage': 'damage_prio',
   'Baton Pass': 'baton_pass',
@@ -219,6 +215,14 @@ const AI_DEBUG_FLAG_LABELS = [
   'Prioritize Effectiveness',
   'Evaluate Attacks',
   'Expert',
+  'Setup First Turn',
+  'Risky Attacks',
+  'Prioritize Damage',
+  'Baton Pass',
+  'Tag Strategy',
+  'Check HP',
+  'Utilize Weather',
+  'Harassment',
 ] as const
 
 function normalizeSpeciesKey(species: string): string {
@@ -251,16 +255,6 @@ function getNatureModifier(nature: string, stat: StatKey): number {
   if (effect.plus === stat) return 1.1
   if (effect.minus === stat) return 0.9
   return 1
-}
-
-function setNatureFromRadio(mon: EditableMon, kind: 'plus' | 'minus', stat: BoostKey): EditableMon {
-  const current = getNatureEffect(mon.nature)
-  const plus = kind === 'plus' ? stat : current.plus
-  const minus = kind === 'minus' ? stat : current.minus
-  if (plus === minus) {
-    return { ...mon, nature: 'Hardy' }
-  }
-  return { ...mon, nature: NATURE_BY_PAIR[`${plus}|${minus}`] ?? mon.nature }
 }
 
 function getBaseStat(speciesData: KaizoPokemon | null, stat: StatKey): number {
@@ -491,8 +485,6 @@ const StatMatrix = memo(function StatMatrix({
   speciesData: KaizoPokemon | null
   onChange: (next: EditableMon) => void
 }) {
-  const natureEffect = getNatureEffect(mon.nature)
-
   return (
     <table className="stat-matrix">
       <thead>
@@ -501,8 +493,6 @@ const StatMatrix = memo(function StatMatrix({
           <th>Base</th>
           <th>IV</th>
           <th>EV</th>
-          <th>+</th>
-          <th>-</th>
           <th>Total</th>
           <th>Stage</th>
         </tr>
@@ -545,24 +535,6 @@ const StatMatrix = memo(function StatMatrix({
                   }}
                 />
               </td>
-              <td>
-                <input
-                  type="radio"
-                  name={`nature-plus-${mon.species || 'mon'}`}
-                  checked={!isHp && natureEffect.plus === stat && natureEffect.plus !== natureEffect.minus}
-                  disabled={isHp}
-                  onChange={() => !isHp && onChange(setNatureFromRadio(mon, 'plus', stat as BoostKey))}
-                />
-              </td>
-              <td>
-                <input
-                  type="radio"
-                  name={`nature-minus-${mon.species || 'mon'}`}
-                  checked={!isHp && natureEffect.minus === stat && natureEffect.plus !== natureEffect.minus}
-                  disabled={isHp}
-                  onChange={() => !isHp && onChange(setNatureFromRadio(mon, 'minus', stat as BoostKey))}
-                />
-              </td>
               <td className="stat-total">{total}</td>
               <td>
                 {isHp ? (
@@ -594,10 +566,72 @@ const StatMatrix = memo(function StatMatrix({
   )
 })
 
+const MoveRow = memo(function MoveRow({
+  mon,
+  idx,
+  moveName,
+  isActive,
+  onChange,
+  onSelectMoveIndex,
+  radioName,
+}: {
+  mon: EditableMon
+  idx: number
+  moveName: string
+  isActive: boolean
+  onChange: (next: EditableMon) => void
+  onSelectMoveIndex: (idx: number) => void
+  radioName: string
+}) {
+  const meta = moveMeta(moveName)
+
+  return (
+    <div className={isActive ? 'move-row selected' : 'move-row'}>
+      <input
+        className="move-radio"
+        type="radio"
+        name={radioName}
+        checked={isActive}
+        onChange={() => onSelectMoveIndex(idx)}
+      />
+
+      <select
+        value={moveName}
+        onChange={(e) => {
+          const nextMoves = [...mon.moves]
+          nextMoves[idx] = e.target.value
+          onChange({ ...mon, moves: nextMoves })
+        }}
+      >
+        <option value="">(No Move)</option>
+        {moveOptions.map((mv) => (
+          <option key={mv} value={mv}>
+            {mv}
+          </option>
+        ))}
+      </select>
+
+      <input
+        type="number"
+        min={0}
+        max={300}
+        value={mon.moveBpOverrides[idx] ?? (meta?.power ?? 0)}
+        onChange={(e) => {
+          const value = Number(e.target.value)
+          const nextBp = [...mon.moveBpOverrides]
+          nextBp[idx] = clamp(Number.isFinite(value) ? value : 0, 0, 300)
+          onChange({ ...mon, moveBpOverrides: nextBp })
+        }}
+      />
+
+      <span className="move-name-display">{moveName || '(No Move)'}</span>
+      <span className="move-meta move-type">{meta?.type ?? '—'}</span>
+      <span className="move-category">{meta?.category ?? '—'}</span>
+    </div>
+  )
+})
+
 const MovesetPanel = memo(function MovesetPanel({
-  attacker,
-  defender,
-  fieldState,
   mon,
   onChange,
   selectedForMainDamage,
@@ -605,9 +639,6 @@ const MovesetPanel = memo(function MovesetPanel({
   onSelectMoveIndex,
   radioName,
 }: {
-  attacker: EditableMon
-  defender: EditableMon
-  fieldState: FieldUiState
   mon: EditableMon
   onChange: (next: EditableMon) => void
   selectedForMainDamage: boolean
@@ -618,66 +649,25 @@ const MovesetPanel = memo(function MovesetPanel({
   return (
     <div className="moveset-block">
       {mon.moves.map((moveName, idx) => {
-        const meta = moveMeta(moveName)
         const isActive = selectedForMainDamage && selectedMoveIndex === idx
-        const rowDamage = calculateClassicDamage(
-          attacker,
-          defender,
-          moveName,
-          attacker.moveBpOverrides[idx],
-          fieldState,
-        )
         return (
-          <div key={idx} className={isActive ? 'move-row selected' : 'move-row'}>
-            <input
-              className="move-radio"
-              type="radio"
-              name={radioName}
-              checked={isActive}
-              onChange={() => onSelectMoveIndex(idx)}
-            />
-
-            <select
-              value={moveName}
-              onChange={(e) => {
-                const nextMoves = [...mon.moves]
-                nextMoves[idx] = e.target.value
-                onChange({ ...mon, moves: nextMoves })
-              }}
-            >
-              <option value="">(No Move)</option>
-              {moveOptions.map((mv) => (
-                <option key={mv} value={mv}>
-                  {mv}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="number"
-              min={0}
-              max={300}
-              value={mon.moveBpOverrides[idx] ?? (meta?.power ?? 0)}
-              onChange={(e) => {
-                const value = Number(e.target.value)
-                const nextBp = [...mon.moveBpOverrides]
-                nextBp[idx] = clamp(Number.isFinite(value) ? value : 0, 0, 300)
-                onChange({ ...mon, moveBpOverrides: nextBp })
-              }}
-            />
-
-            <span className="move-name-display">{moveName || '(No Move)'}</span>
-            <span className="move-meta move-type">{meta?.type ?? '—'}</span>
-            <span className="move-category">{meta?.category ?? '—'}</span>
-            <span className="move-inline-damage">{rowDamage?.range ?? '—'}</span>
-          </div>
+          <MoveRow
+            key={`${idx}-${moveName}`}
+            mon={mon}
+            idx={idx}
+            moveName={moveName}
+            isActive={isActive}
+            onChange={onChange}
+            onSelectMoveIndex={onSelectMoveIndex}
+            radioName={radioName}
+          />
         )
       })}
     </div>
   )
 })
 
-const FieldPanel = memo(function FieldPanel({
+const FieldConditions = memo(function FieldConditions({
   fieldState,
   setFieldState,
 }: {
@@ -918,6 +908,7 @@ export default function App() {
   const [trainerKey, setTrainerKey] = useState(() => getFirstTrainerKeyForSplit(trainerOptions, DEFAULT_SPLIT))
   const [enemySlot, setEnemySlot] = useState(0)
   const [aiFlagOverrides, setAiFlagOverrides] = useState<Record<string, boolean>>({})
+  const [showAiFlagEditor, setShowAiFlagEditor] = useState(false)
   const [mainDamageSelection, setMainDamageSelection] = useState<{ side: DamageSourceSide; idx: number }>({
     side: 'player',
     idx: 0,
@@ -930,6 +921,7 @@ export default function App() {
   const initialTrainer = trainerByKey.get(trainerKey)?.trainer
   const initialEnemy = initialTrainer?.pokemon[0] ? fromTrainerPokemon(initialTrainer.pokemon[0]) : createDefaultMon()
   const [enemyMon, setEnemyMon] = useState<EditableMon>(initialEnemy)
+  const trainer = trainerByKey.get(trainerKey)?.trainer
 
   const selectTrainer = useCallback((key: string) => {
     if (!key) {
@@ -999,13 +991,64 @@ export default function App() {
     }
   }, [])
 
+  const saveAiFlags = useCallback(async () => {
+    if (!trainer) return
+
+    // Rebuild the stored short-key flag list from the visible checkbox state.
+    // This lets unchecking a flag remove it from trainer_db.json permanently.
+    const visibleFlagKeys = AI_DEBUG_FLAG_LABELS.map((label) => AI_FLAG_KEY_MAP[label]).filter(Boolean) as string[]
+    const visibleFlagSet = new Set(visibleFlagKeys)
+    const persistedFlags = new Set<string>()
+
+    for (const flag of trainer.ai_flags ?? []) {
+      if (!visibleFlagSet.has(flag)) {
+        persistedFlags.add(flag)
+      }
+    }
+
+    for (const label of AI_DEBUG_FLAG_LABELS) {
+      const mapped = AI_FLAG_KEY_MAP[label]
+      if (!mapped) continue
+      const checked = Object.prototype.hasOwnProperty.call(aiFlagOverrides, label)
+        ? aiFlagOverrides[label]
+        : (trainer.ai_flags ?? []).includes(mapped)
+      if (checked) {
+        persistedFlags.add(mapped)
+      } else {
+        persistedFlags.delete(mapped)
+      }
+    }
+
+    const effectiveFlags = [...persistedFlags]
+
+    try {
+      const response = await axios.post(
+        'http://localhost:5000/api/save-trainer-flags',
+        {
+          trainerName: trainer.name,
+          trainerSplit: trainer.split,
+          aiFlags: effectiveFlags,
+        }
+      )
+
+      if (response.status === 200) {
+        setAiFlagOverrides({})
+        alert(`Saved AI flags for ${trainer.name}`)
+      }
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) && err.response?.data?.error
+        ? err.response.data.error
+        : 'Failed to save AI flags'
+      alert(`Error: ${msg}`)
+    }
+  }, [trainer, aiFlagOverrides])
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'application/octet-stream': ['.sav', '.dsv'] },
     multiple: false,
   })
 
-  const trainer = trainerByKey.get(trainerKey)?.trainer
   const enemyRoster = useMemo(() => trainer?.pokemon ?? [], [trainer?.pokemon])
 
   const playerSpeciesData = useMemo(
@@ -1281,9 +1324,6 @@ export default function App() {
           <StatMatrix mon={normalizedPlayer} speciesData={playerSpeciesData} onChange={setPlayerMon} />
 
           <MovesetPanel
-            attacker={normalizedPlayer}
-            defender={normalizedEnemy}
-            fieldState={fieldState}
             mon={normalizedPlayer}
             onChange={setPlayerMon}
             selectedForMainDamage={mainDamageSelection.side === 'player'}
@@ -1291,9 +1331,21 @@ export default function App() {
             onSelectMoveIndex={(idx) => setMainDamageSelection({ side: 'player', idx })}
             radioName="main-damage-player"
           />
+
+          <div className="damage-output-box">
+            <h3>Damage Output</h3>
+            {mainDamageSelection.side === 'player' && primaryDamage ? (
+              <>
+                <p className="damage-string">{primaryDamage.description}</p>
+                <p className="damage-range">{primaryDamage.range}</p>
+              </>
+            ) : (
+              <p className="hint">Select a player move radio button to view damage output.</p>
+            )}
+          </div>
         </PokemonPanel>
 
-        <FieldPanel fieldState={fieldState} setFieldState={setFieldState} />
+        <FieldConditions fieldState={fieldState} setFieldState={setFieldState} />
 
         <PokemonPanel title="Enemy Boss" spriteSpecies={normalizedEnemy.species} spriteFallback="gengar">
 
@@ -1334,23 +1386,54 @@ export default function App() {
             ))}
           </div>
 
-          <div className="ai-flag-debug">
-            {AI_DEBUG_FLAG_LABELS.map((flag) => {
-              const trainerHas = (trainer?.ai_flags ?? []).includes(flag)
-              const checked = Object.prototype.hasOwnProperty.call(aiFlagOverrides, flag)
-                ? aiFlagOverrides[flag]
-                : trainerHas
-              return (
-                <label key={flag} className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => setAiFlagOverrides((prev) => ({ ...prev, [flag]: e.target.checked }))}
-                  />
-                  {flag}
-                </label>
-              )
-            })}
+          {(trainer?.ai_flags ?? []).length === 0 ? (
+            <p className="ai-flag-empty-note">
+              No AI flags were recorded for this trainer. Use the toggles below to set them manually.
+            </p>
+          ) : null}
+
+          <div className="ai-flag-editor-shell">
+            <button
+              type="button"
+              className="ai-flag-toggle-button"
+              onClick={() => setShowAiFlagEditor((prev) => !prev)}
+            >
+              {showAiFlagEditor ? 'Hide AI Flags' : 'Show AI Flags'}
+            </button>
+
+            {showAiFlagEditor ? (
+              <>
+                <div className="ai-flag-debug">
+                  {AI_DEBUG_FLAG_LABELS.map((flag) => {
+                    const mappedFlag = AI_FLAG_KEY_MAP[flag]
+                    const trainerHas = mappedFlag ? (trainer?.ai_flags ?? []).includes(mappedFlag) : false
+                    const checked = Object.prototype.hasOwnProperty.call(aiFlagOverrides, flag)
+                      ? aiFlagOverrides[flag]
+                      : trainerHas
+                    return (
+                      <label key={flag} className="check-row">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => setAiFlagOverrides((prev) => ({ ...prev, [flag]: e.target.checked }))}
+                        />
+                        {flag}
+                      </label>
+                    )
+                  })}
+                </div>
+
+                {trainer && Object.keys(aiFlagOverrides).length > 0 ? (
+                  <button
+                    type="button"
+                    className="save-flags-button"
+                    onClick={saveAiFlags}
+                  >
+                    Save AI Flags for {trainer.name}
+                  </button>
+                ) : null}
+              </>
+            ) : null}
           </div>
 
           <div className="enemy-slot-buttons">
@@ -1464,9 +1547,6 @@ export default function App() {
           </div>
 
           <MovesetPanel
-            attacker={normalizedEnemy}
-            defender={normalizedPlayer}
-            fieldState={fieldState}
             mon={normalizedEnemy}
             onChange={setEnemyMon}
             selectedForMainDamage={mainDamageSelection.side === 'enemy'}
@@ -1474,6 +1554,18 @@ export default function App() {
             onSelectMoveIndex={(idx) => setMainDamageSelection({ side: 'enemy', idx })}
             radioName="main-damage-enemy"
           />
+
+          <div className="damage-output-box">
+            <h3>Damage Output</h3>
+            {mainDamageSelection.side === 'enemy' && primaryDamage ? (
+              <>
+                <p className="damage-string">{primaryDamage.description}</p>
+                <p className="damage-range">{primaryDamage.range}</p>
+              </>
+            ) : (
+              <p className="hint">Select an enemy move radio button to view damage output.</p>
+            )}
+          </div>
         </PokemonPanel>
       </main>
 
