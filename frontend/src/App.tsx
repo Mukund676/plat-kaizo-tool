@@ -226,7 +226,56 @@ const AI_DEBUG_FLAG_LABELS = [
 ] as const
 
 function normalizeSpeciesKey(species: string): string {
-  return species.trim().toUpperCase()
+  return species.trim().toLowerCase()
+}
+
+function buildKaizoPokemonLookup(): Map<string, KaizoPokemon> {
+  const lookup = new Map<string, KaizoPokemon>()
+
+  for (const [key, value] of Object.entries(kaizoData.pokemon)) {
+    lookup.set(key, value)
+    lookup.set(normalizeSpeciesKey(key), value)
+  }
+
+  const aliases: Array<[string, string]> = [
+    ['GIRATINA-ORIGIN', 'Giratina (O)'],
+    ['GIRATINA ORIGIN', 'Giratina (O)'],
+    ['GIRATINA-ORIGIN ', 'Giratina (O)'],
+    ['DEOXYS-S', 'Deoxys (S)'],
+    ['DEOXYS SPEED', 'Deoxys (S)'],
+    ['DEOXYS-A', 'Deoxys (A)'],
+    ['DEOXYS ATTACK', 'Deoxys (A)'],
+    ['DEOXYS-D', 'Deoxys (D)'],
+    ['DEOXYS DEFENSE', 'Deoxys (D)'],
+    ['SHAYMIN-S', 'Shaymin (S)'],
+    ['SHAYMIN SKY', 'Shaymin (S)'],
+    ['WORMADAM-S', 'Wormadam (S)'],
+    ['WORMADAM-TRASH', 'Wormadam (T)'],
+    ['GIRATINA-O', 'Giratina (O)'],
+  ]
+
+  for (const [alias, canonical] of aliases) {
+    const pokemon = kaizoData.pokemon[canonical]
+    if (pokemon) {
+      lookup.set(normalizeSpeciesKey(alias), pokemon)
+      lookup.set(alias, pokemon)
+    }
+  }
+
+  return lookup
+}
+
+const kaizoPokemonLookup = buildKaizoPokemonLookup()
+
+function getKaizoPokemon(species: string): KaizoPokemon | null {
+  const trimmed = species.trim()
+  if (!trimmed) return null
+
+  return (
+    kaizoPokemonLookup.get(trimmed) ??
+    kaizoPokemonLookup.get(normalizeSpeciesKey(trimmed)) ??
+    null
+  )
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -1052,12 +1101,12 @@ export default function App() {
   const enemyRoster = useMemo(() => trainer?.pokemon ?? [], [trainer?.pokemon])
 
   const playerSpeciesData = useMemo(
-    () => kaizoData.pokemon[normalizeSpeciesKey(playerMon.species)] ?? null,
+    () => getKaizoPokemon(playerMon.species),
     [playerMon.species],
   )
 
   const enemySpeciesData = useMemo(
-    () => kaizoData.pokemon[normalizeSpeciesKey(enemyMon.species)] ?? null,
+    () => getKaizoPokemon(enemyMon.species),
     [enemyMon.species],
   )
 
@@ -1177,7 +1226,7 @@ export default function App() {
       .map((partyMon, idx) => {
         if (idx === enemySlot) return null
         const editable = fromTrainerPokemon(partyMon)
-        const data = kaizoData.pokemon[normalizeSpeciesKey(editable.species)] ?? null
+        const data = getKaizoPokemon(editable.species)
         return toBattleMon(editable, data, idx === enemyRoster.length - 1)
       })
       .filter(Boolean) as BattleMon[]

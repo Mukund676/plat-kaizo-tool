@@ -7425,7 +7425,7 @@
       "uncommon_item": null,
       "rare_item": null
     },
-    "Deoxys (A)": {
+    "DEOXYS-ATTACK": {
       "id": 496,
       "hp": 90,
       "attack": 200,
@@ -7440,7 +7440,7 @@
       "uncommon_item": null,
       "rare_item": null
     },
-    "Deoxys (D)": {
+    "DEOXYS-DEFENSE": {
       "id": 497,
       "hp": 90,
       "attack": 100,
@@ -7455,7 +7455,7 @@
       "uncommon_item": null,
       "rare_item": null
     },
-    "Deoxys (S)": {
+    "DEOXYS-SPEED": {
       "id": 498,
       "hp": 90,
       "attack": 100,
@@ -7500,7 +7500,7 @@
       "uncommon_item": null,
       "rare_item": null
     },
-    "Giratina (O)": {
+    "GIRATINA-ORIGIN": {
       "id": 501,
       "hp": 150,
       "attack": 120,
@@ -39287,7 +39287,7 @@
         "level": 1
       }
     ],
-    "Deoxys (A)": [
+    "DEOXYS-ATTACK": [
       {
         "move": "Leer",
         "level": 1
@@ -39345,7 +39345,7 @@
         "level": 97
       }
     ],
-    "Deoxys (D)": [
+    "DEOXYS-DEFENSE": [
       {
         "move": "Leer",
         "level": 1
@@ -39411,7 +39411,7 @@
         "level": 97
       }
     ],
-    "Deoxys (S)": [
+    "DEOXYS-SPEED": [
       {
         "move": "Leer",
         "level": 1
@@ -39577,7 +39577,7 @@
         "level": 47
       }
     ],
-    "Giratina (O)": [
+    "GIRATINA-ORIGIN": [
       {
         "move": "DragonBreath",
         "level": 1
@@ -58424,7 +58424,7 @@
     ],
     "Egg": [],
     "Bad Egg": [],
-    "Deoxys (A)": [
+    "DEOXYS-ATTACK": [
       "Aerial Ace",
       "Avalanche",
       "Brick Break",
@@ -58484,7 +58484,7 @@
       "Toxic",
       "Water Pulse"
     ],
-    "Deoxys (D)": [
+    "DEOXYS-DEFENSE": [
       "Aerial Ace",
       "Avalanche",
       "Brick Break",
@@ -58544,7 +58544,7 @@
       "Toxic",
       "Water Pulse"
     ],
-    "Deoxys (S)": [
+    "DEOXYS-SPEED": [
       "Aerial Ace",
       "Avalanche",
       "Brick Break",
@@ -58671,7 +58671,7 @@
       "Thief",
       "Toxic"
     ],
-    "Giratina (O)": [
+    "GIRATINA-ORIGIN": [
       "Aerial Ace",
       "Calm Mind",
       "Charge Beam",
@@ -59152,9 +59152,9 @@
       "CASCOON",
       "WURMPLE"
     ],
-    "Deoxys (A)": [],
-    "Deoxys (D)": [],
-    "Deoxys (S)": [],
+    "DEOXYS-ATTACK": [],
+    "DEOXYS-DEFENSE": [],
+    "DEOXYS-SPEED": [],
     "EEVEE": [],
     "EKANS": [],
     "ELECTABUZZ": [
@@ -59295,7 +59295,7 @@
     "GYARADOS": [
       "MAGIKARP"
     ],
-    "Giratina (O)": [],
+    "GIRATINA-ORIGIN": [],
     "HAPPINY": [],
     "HARIYAMA": [
       "MAKUHITA"

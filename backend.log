@@ -8,3 +8,103 @@ Press CTRL+C to quit
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 150-788-619
+ * Detected change in 'C:\\Users\\mukun\\Documents\\plat-kaizo-tool\\backend\\build_database.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 150-788-619
+127.0.0.1 - - [21/May/2026 13:44:48] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:44:48] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:45:16] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:45:17] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:45:25] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:45:25] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:45:32] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:45:32] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:46:38] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:46:39] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:46:53] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:46:54] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:47:52] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:47:53] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:48:17] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:48:18] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:48:25] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:48:25] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:48:46] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:48:46] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+ * Detected change in 'C:\\Users\\mukun\\Documents\\plat-kaizo-tool\\backend\\build_database.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 150-788-619
+ * Detected change in 'C:\\Users\\mukun\\Documents\\plat-kaizo-tool\\backend\\build_database.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 150-788-619
+ * Detected change in 'C:\\Users\\mukun\\Documents\\plat-kaizo-tool\\backend\\build_database.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 150-788-619
+127.0.0.1 - - [21/May/2026 13:50:00] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:00] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:18] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:18] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:31] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:32] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:48] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:49] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:57] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:50:57] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:51:10] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:51:11] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:51:24] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:51:25] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:51:39] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:51:39] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:51:51] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:51:51] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:52:01] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:52:01] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:52:16] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:52:16] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:52:40] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:52:40] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:52:52] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:52:52] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:53:01] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:53:01] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:54:53] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:54:54] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:55:14] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:55:14] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:55:46] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:55:46] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:55:57] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:55:58] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:56:17] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:56:18] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:56:26] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:56:27] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:56:37] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:56:37] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:56:51] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:56:52] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:57:26] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:57:26] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:57:50] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:57:51] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:58:19] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:58:19] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:58:32] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:58:33] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:58:48] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:58:49] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:58:57] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:58:58] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:59:08] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:59:09] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:59:28] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:59:28] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:59:37] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:59:37] "POST /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:59:46] "OPTIONS /api/save-trainer-flags HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2026 13:59:46] "POST /api/save-trainer-flags HTTP/1.1" 200 -
