@@ -3447,6 +3447,7 @@
         "eval_att",
         "expert",
         "status",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -3541,12 +3542,7 @@
       "name": "GalacticfOphelia (MULTI BATTLE With Galactic Bianca)",
       "split": "Gardenia Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -3597,14 +3593,7 @@
       "name": "GalacticfBianca (MULTI BATTLE With Galactic Ophelia)",
       "split": "Gardenia Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "tag_strategy",
-        "check_hp",
-        "harassment"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -3711,13 +3700,7 @@
       "name": "GalacticfSycorax (MULTI BATTLE With Galactic Setebos, between the trees on the top path)",
       "split": "Gardenia Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "damage_prio",
-        "harassment"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -3773,8 +3756,7 @@
         "expert",
         "status",
         "damage_prio",
-        "double_battle",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -3825,11 +3807,7 @@
       "name": "GalacticfMiranda (MULTI BATTLE With Galactic Prospero, at the bottom path)",
       "split": "Gardenia Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -3953,8 +3931,9 @@
         "basic",
         "eval_att",
         "expert",
+        "status",
         "risky",
-        "check_hp"
+        "damage_prio"
       ],
       "pokemon": [
         {
@@ -4022,8 +4001,8 @@
         "basic",
         "eval_att",
         "expert",
-        "harassment",
-        "tag_strategy"
+        "risky",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -4099,15 +4078,7 @@
     {
       "name": "GalacticfVenus (Above the trees on the right)",
       "split": "Gardenia Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "status",
-        "damage_prio",
-        "harassment"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -4185,13 +4156,7 @@
       "name": "GalacticfUranus (MULTI BATTLE With Galactic Francisco, Left of the trees)",
       "split": "Gardenia Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "damage_prio",
-        "baton_pass",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -4246,8 +4211,8 @@
         "eval_att",
         "expert",
         "double_battle",
-        "status",
-        "tag_strategy"
+        "check_hp",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -4303,8 +4268,7 @@
         "expert",
         "risky",
         "double_battle",
-        "check_hp",
-        "tag_strategy"
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -4360,8 +4324,7 @@
         "expert",
         "double_battle",
         "check_hp",
-        "harassment",
-        "tag_strategy"
+        "harassment"
       ],
       "pokemon": [
         {
@@ -4412,13 +4375,7 @@
       "name": "GalacticfTerra (MULTI BATTLE With Galactic Luna)*",
       "split": "Gardenia Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "status",
-        "harassment"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -4487,8 +4444,9 @@
         "eval_att",
         "expert",
         "risky",
-        "status",
+        "tag_strategy",
         "double_battle",
+        "check_hp",
         "harassment"
       ],
       "pokemon": [
@@ -5304,7 +5262,10 @@
         "basic",
         "eval_att",
         "expert",
-        "status"
+        "status",
+        "double_battle",
+        "weather",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -5387,7 +5348,8 @@
         "eval_att",
         "expert",
         "status",
-        "risky"
+        "risky",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -5465,11 +5427,7 @@
     {
       "name": "Galactic Ganymede (Gauntlet Start)*",
       "split": "Fantina Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -5550,7 +5508,10 @@
         "basic",
         "eval_att",
         "expert",
-        "status"
+        "status",
+        "risky",
+        "double_battle",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -5632,7 +5593,11 @@
         "basic",
         "eval_att",
         "expert",
-        "status"
+        "status",
+        "risky",
+        "double_battle",
+        "check_hp",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -5725,13 +5690,13 @@
       "name": "Cyclist Axel (MULTI BATTLE With Cyclist John)",
       "split": "Fantina Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "damage_prio",
-        "baton_pass"
+        "tag_strategy",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -5768,12 +5733,12 @@
       "name": "Cyclist John (MULTI BATTLE With Cyclist Axel)",
       "split": "Fantina Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "damage_prio",
-        "baton_pass"
+        "tag_strategy",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -5810,11 +5775,7 @@
       "name": "CyclistFMegan (MULTI BATTLE With Cyclist Nicole)",
       "split": "Fantina Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -5848,11 +5809,7 @@
       "name": "CyclistFNicole (MULTI BATTLE With Cyclist Megan)",
       "split": "Fantina Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -5970,11 +5927,7 @@
     {
       "name": "CyclistFRachel",
       "split": "Fantina Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -6131,11 +6084,7 @@
     {
       "name": "CyclistFKaren",
       "split": "Fantina Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -6283,7 +6232,7 @@
         "expert",
         "status",
         "risky",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -6350,7 +6299,9 @@
       "ai_flags": [
         "basic",
         "eval_att",
-        "expert"
+        "expert",
+        "status",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -6569,6 +6520,7 @@
         "basic",
         "eval_att",
         "expert",
+        "status",
         "check_hp"
       ],
       "pokemon": [
@@ -6897,7 +6849,7 @@
         "eval_att",
         "expert",
         "status",
-        "baton_pass"
+        "tag_strategy"
       ],
       "pokemon": [
         {
@@ -7461,7 +7413,8 @@
         "basic",
         "eval_att",
         "expert",
-        "status"
+        "status",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -7625,7 +7578,7 @@
         "eval_att",
         "expert",
         "damage_prio",
-        "baton_pass",
+        "tag_strategy",
         "check_hp"
       ],
       "pokemon": [
@@ -7694,7 +7647,7 @@
         "basic",
         "eval_att",
         "expert",
-        "baton_pass"
+        "tag_strategy"
       ],
       "pokemon": [
         {
@@ -7762,7 +7715,7 @@
         "basic",
         "eval_att",
         "expert",
-        "baton_pass"
+        "status"
       ],
       "pokemon": [
         {
@@ -7830,8 +7783,7 @@
         "basic",
         "eval_att",
         "expert",
-        "status",
-        "baton_pass"
+        "tag_strategy"
       ],
       "pokemon": [
         {
@@ -8325,13 +8277,7 @@
     {
       "name": "Barry #3 (Player picked Chimchar)",
       "split": "Maylene Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "check_hp"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -8422,13 +8368,7 @@
     {
       "name": "Barry #3 (Player picked Piplup)",
       "split": "Maylene Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "check_hp"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -8519,13 +8459,7 @@
     {
       "name": "Barry #3 (Player picked Turtwig)",
       "split": "Maylene Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "check_hp"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -8620,7 +8554,7 @@
         "basic",
         "eval_att",
         "expert",
-        "baton_pass",
+        "tag_strategy",
         "check_hp"
       ],
       "pokemon": [
@@ -8689,7 +8623,7 @@
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy",
+        "double_battle",
         "check_hp"
       ],
       "pokemon": [
@@ -8741,11 +8675,10 @@
       "name": "Twins Emma & Lil (DOUBLE BATTLE)",
       "split": "Maylene Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -9061,12 +8994,11 @@
       "name": "Young Couple Ty & Sue (DOUBLE BATTLE)",
       "split": "Maylene Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -9227,8 +9159,8 @@
       "split": "Maylene Split",
       "ai_flags": [
         "basic",
-        "status",
-        "damage_prio"
+        "eval_att",
+        "expert"
       ],
       "pokemon": [
         {
@@ -9265,13 +9197,11 @@
       "name": "Belle & Pa Ava & Matt (DOUBLE BATTLE) .",
       "split": "Maylene Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "status",
-        "damage_prio",
-        "tag_strategy"
+        "check_hp",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -9732,11 +9662,10 @@
       "name": "Twins Teri & Tia (DOUBLE BATTLE, RAIN)",
       "split": "Maylene Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -10131,12 +10060,11 @@
       "name": "Double Team Nate & Lisa (DOUBLE BATTLE)",
       "split": "Maylene Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -10232,9 +10160,9 @@
         "basic",
         "eval_att",
         "expert",
-        "status",
-        "risky",
-        "check_hp"
+        "damage_prio",
+        "tag_strategy",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -10331,7 +10259,7 @@
         "eval_att",
         "expert",
         "status",
-        "risky",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -10414,7 +10342,8 @@
       "ai_flags": [
         "basic",
         "eval_att",
-        "expert"
+        "expert",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -10509,7 +10438,8 @@
       "ai_flags": [
         "basic",
         "eval_att",
-        "expert"
+        "expert",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -10604,7 +10534,8 @@
       "ai_flags": [
         "basic",
         "eval_att",
-        "expert"
+        "expert",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -11285,11 +11216,10 @@
       "name": "PsychicF Abigail (MULTI BATTLE With Psychic Mitchell)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -11340,11 +11270,10 @@
       "name": "Psychic Mitchell (MULTI BATTLE With Psychic Abigail)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -11543,13 +11472,7 @@
     {
       "name": "Collector Ripper",
       "split": "Wake Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "baton_pass"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -11868,12 +11791,10 @@
       "name": "Interviewers Molly & Shannon (DOUBLE BATTLE)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "status",
-        "harassment"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -11980,12 +11901,11 @@
       "name": "Ruin Maniac Bruno (MULTI BATTLE With BirdKeeper Billie)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -12023,12 +11943,11 @@
       "name": "Sailor Gene (MULTI BATTLE With PokéKid Jerry)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -12066,12 +11985,11 @@
       "name": "PokéKid Jerry (MULTI BATTLE With Sailor Gene)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -12109,12 +12027,11 @@
       "name": "Guitarist Kenny (MULTI BATTLE With Idol Dolly)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -12152,12 +12069,11 @@
       "name": "Idol Dolly (MULTI BATTLE With Guitarist Kenny)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -12195,12 +12111,11 @@
       "name": "Beauty Britney (MULTI BATTLE With Dragon Tamer Elton)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -12238,12 +12153,11 @@
       "name": "Dragon Tamer Elton (MULTI BATTLE With Beauty Britney)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -12281,13 +12195,7 @@
       "name": "Double Team Stevie and Lindsey (DOUBLE BATTLE)",
       "split": "Wake Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "status",
-        "tag_strategy",
-        "harassment"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -12941,11 +12849,7 @@
     {
       "name": "Barry #4 (Player picked Chimchar, outside of Pastoria Gym)",
       "split": "Wake Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -13036,11 +12940,7 @@
     {
       "name": "Barry #4 (Player picked Piplup, outside of Pastoria Gym)",
       "split": "Wake Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -13131,11 +13031,7 @@
     {
       "name": "Barry #4 (Player picked Turtwig, outside of Pastoria Gym)",
       "split": "Wake Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -13897,12 +13793,7 @@
     {
       "name": "Leader CrasherWake",
       "split": "Wake Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "status"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -13998,7 +13889,11 @@
       "ai_flags": [
         "basic",
         "eval_att",
-        "expert"
+        "expert",
+        "status",
+        "risky",
+        "double_battle",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -14483,7 +14378,7 @@
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -14538,6 +14433,7 @@
         "risky",
         "damage_prio",
         "tag_strategy",
+        "double_battle",
         "check_hp",
         "weather",
         "harassment"
@@ -14632,7 +14528,11 @@
     {
       "name": "Pkmn Ranger Allison",
       "split": "Byron Split",
-      "ai_flags": [],
+      "ai_flags": [
+        "basic",
+        "eval_att",
+        "expert"
+      ],
       "pokemon": [
         {
           "slot": 0,
@@ -14653,11 +14553,7 @@
     {
       "name": "Pkmn Ranger Jeffery",
       "split": "Byron Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -14681,7 +14577,9 @@
       "ai_flags": [
         "basic",
         "eval_att",
-        "expert"
+        "expert",
+        "status",
+        "weather"
       ],
       "pokemon": [
         {
@@ -14707,9 +14605,11 @@
         "basic",
         "eval_att",
         "expert",
-        "status",
         "risky",
-        "baton_pass"
+        "tag_strategy",
+        "double_battle",
+        "check_hp",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -14902,7 +14802,8 @@
         "eval_att",
         "expert",
         "status",
-        "check_hp"
+        "risky",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -15000,7 +14901,8 @@
         "expert",
         "status",
         "risky",
-        "check_hp"
+        "damage_prio",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -15093,13 +14995,12 @@
       "name": "Galactic Squad Leda (FOG, DOUBLE BATTLE)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "damage_prio",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -15385,12 +15286,11 @@
       "name": "Galactic Themisto (FOG, DOUBLE BATTLE)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "baton_pass",
         "tag_strategy",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -15488,7 +15388,7 @@
         "expert",
         "status",
         "risky",
-        "baton_pass",
+        "tag_strategy",
         "check_hp"
       ],
       "pokemon": [
@@ -15679,14 +15579,13 @@
       "name": "Galactic Squad Himalia (FOG, DOUBLE BATTLE)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "risky",
         "damage_prio",
-        "baton_pass",
         "tag_strategy",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -15785,7 +15684,9 @@
         "eval_att",
         "expert",
         "status",
-        "check_hp"
+        "double_battle",
+        "weather",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -15881,7 +15782,9 @@
         "basic",
         "eval_att",
         "expert",
-        "status"
+        "status",
+        "risky",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -16070,12 +15973,7 @@
     {
       "name": "Galactic Ganymede (FOG)",
       "split": "Byron Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "risky"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -16167,13 +16065,12 @@
       "name": "GalacticF Io (FOG, DOUBLE BATTLE)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -16265,13 +16162,12 @@
       "name": "Commander Jupiter (FOG, DOUBLE BATTLE)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -16366,12 +16262,12 @@
       "name": "Galactic Mercury (DOUBLE BATTLE)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "status",
-        "check_hp"
+        "risky",
+        "harassment",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -16453,7 +16349,9 @@
         "basic",
         "eval_att",
         "expert",
-        "check_hp"
+        "risky",
+        "double_battle",
+        "harassment"
       ],
       "pokemon": [
         {
@@ -16711,7 +16609,7 @@
         "basic",
         "eval_att",
         "expert",
-        "baton_pass"
+        "tag_strategy"
       ],
       "pokemon": [
         {
@@ -16793,7 +16691,7 @@
         "eval_att",
         "expert",
         "damage_prio",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -16872,11 +16770,7 @@
     {
       "name": "Barry #5 (Player picked Chimchar, on Canalave Bridge)",
       "split": "Byron Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -16967,11 +16861,7 @@
     {
       "name": "Barry #5 (Player picked Piplup, on Canalave Bridge)",
       "split": "Byron Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -17062,11 +16952,7 @@
     {
       "name": "Barry #5 (Player picked Turtwig, on Canalave Bridge)",
       "split": "Byron Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -17162,7 +17048,8 @@
         "eval_att",
         "expert",
         "damage_prio",
-        "tag_strategy"
+        "double_battle",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -17241,13 +17128,12 @@
       "name": "GalacticF Calypso (MULTI BATTLE With Galactic Thalassa)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -17313,11 +17199,10 @@
       "name": "Galactic Thalassa (MULTI BATTLE With Galactic Calypso)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -17382,12 +17267,11 @@
       "name": "GalacticF Despina (MULTI BATTLE With Galactic Galatea)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -17524,13 +17408,12 @@
       "name": "Galactic Hippocamp (MULTI BATTLE With Galactic Psamanthe, Right, Path 1)*",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -17664,13 +17547,12 @@
       "name": "Galactic Sao (MULTI BATTLE With Galactic Neso, Path 1)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -17737,13 +17619,12 @@
       "name": "Galactic Neso (MULTI BATTLE With Galactic Sao)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -17809,13 +17690,7 @@
       "name": "GalacticF Halimede (MULTI BATTLE With Galactic Proteus, Down, Path 2)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
-        "basic",
-        "eval_att",
-        "expert",
-        "status",
-        "risky",
-        "harassment"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -17880,12 +17755,11 @@
       "name": "Galactic Proteus (MULTI BATTLE With Galactic Halimede)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "weather",
         "harassment"
       ],
@@ -17949,12 +17823,11 @@
       "name": "Galactic Naid (MULTI BATTLE With Galactic Nereid, Path 2)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "damage_prio",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -18088,13 +17961,12 @@
       "name": "GalacticF Larissa (MULTI BATTLE With Galactic Laomedeia)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -18160,13 +18032,12 @@
       "name": "GalacticF Laomedeia (MULTI BATTLE With Galactic Larissa)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -18232,12 +18103,12 @@
       "name": "Galactic Triton (PERMANENT RAIN, MULTI BATTLE With Galactic Neptune)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy",
-        "harassment"
+        "risky",
+        "double_battle",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -18302,11 +18173,11 @@
       "name": "Galactic Neptune (MULTI BATTLE With Galactic Triton)",
       "split": "Byron Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy",
+        "double_battle",
+        "check_hp",
         "harassment"
       ],
       "pokemon": [
@@ -18810,12 +18681,11 @@
       "name": "Trainer Marley (PARTNER)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "damage_prio",
-        "tag_strategy",
+        "double_battle",
         "check_hp"
       ],
       "pokemon": [
@@ -18909,11 +18779,10 @@
       "name": "Galactic Pan (RAIN, MULTI BATTLE With Galactic Daphnis)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -18978,11 +18847,10 @@
       "name": "Galactic Daphnis (RAIN, MULTI BATTLE With Galactic Pan)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -19245,11 +19113,11 @@
       "name": "Galactic Iapetus (RAIN, MULTI BATTLE With Galactic Phoebe)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "risky"
+        "double_battle",
+        "check_hp"
       ],
       "pokemon": [
         {
@@ -19615,12 +19483,11 @@
       "name": "Galactic Hyperion (MULTI BATTLE With Galactic Atlas)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -19670,11 +19537,10 @@
       "name": "GalacticF Tethys (RAIN, MULTI BATTLE With Galactic Rhea)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -19740,12 +19606,11 @@
       "name": "GalacticF Rhea (RAIN, MULTI BATTLE With Galactic Tethys)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -19812,12 +19677,11 @@
       "name": "Commander Saturn (RAIN, MULTI BATTLE WITH GALACTIC TITAN)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -19897,12 +19761,11 @@
       "name": "Galactic Titan (RAIN, MULTI BATTLE WITH GALACTIC SATURN)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "damage_prio",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -20064,12 +19927,12 @@
       "name": "Galactic Mercury (MULTI BATTLE with Galactic Venus)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy",
-        "harassment"
+        "risky",
+        "harassment",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -20134,13 +19997,14 @@
       "name": "GalacticF Venus (MULTI BATTLE with Galactic Mercury)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
-        "tag_strategy",
-        "harassment"
+        "risky",
+        "damage_prio",
+        "harassment",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -20205,11 +20069,13 @@
       "name": "Galactic Luna (MULTI BATTLE with Galactic Pluto)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
+        "risky",
         "tag_strategy",
+        "double_battle",
+        "check_hp",
         "harassment"
       ],
       "pokemon": [
@@ -20275,12 +20141,12 @@
       "name": "Galactic Pluto (MULTI BATTLE with Galactic Luna)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy",
-        "harassment"
+        "status",
+        "check_hp",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -20345,13 +20211,12 @@
       "name": "Galactic Squad Deimos (MULTI BATTLE with Galactic Squad Phobos)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
         "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -20445,12 +20310,12 @@
       "name": "Galactic Squad Phobos (MULTI BATTLE with Galactic Squad Deimos)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
+        "status",
         "risky",
-        "tag_strategy",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -20544,12 +20409,13 @@
       "name": "Commander Mars (MULTI BATTLE with Galactic Terra)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
+        "status",
+        "damage_prio",
         "tag_strategy",
-        "harassment"
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -20642,12 +20508,13 @@
       "name": "GalacticF Terra (MULTI BATTLE with Commander Mars)",
       "split": "Candice Split",
       "ai_flags": [
-        "double_battle",
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy",
-        "harassment"
+        "status",
+        "risky",
+        "harassment",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -22259,13 +22126,7 @@
     {
       "name": "Skier Anas (OPTIONAL, HAIL)",
       "split": "Candice Split",
-      "ai_flags": [
-        "basic",
-        "eval_att",
-        "expert",
-        "risky",
-        "check_hp"
-      ],
+      "ai_flags": [],
       "pokemon": [
         {
           "slot": 0,
@@ -24872,7 +24733,8 @@
       "ai_flags": [
         "basic",
         "eval_att",
-        "expert"
+        "expert",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -26693,6 +26555,7 @@
         "eval_att",
         "expert",
         "status",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -27167,7 +27030,8 @@
         "eval_att",
         "expert",
         "status",
-        "damage_prio"
+        "damage_prio",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -27333,6 +27197,7 @@
         "eval_att",
         "expert",
         "status",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -27657,6 +27522,7 @@
         "eval_att",
         "expert",
         "damage_prio",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -28618,6 +28484,7 @@
         "eval_att",
         "expert",
         "risky",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -28716,6 +28583,7 @@
         "expert",
         "status",
         "risky",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -28813,6 +28681,7 @@
         "eval_att",
         "expert",
         "status",
+        "double_battle",
         "harassment"
       ],
       "pokemon": [
@@ -29767,7 +29636,8 @@
         "basic",
         "eval_att",
         "expert",
-        "status"
+        "status",
+        "double_battle"
       ],
       "pokemon": [
         {
@@ -30103,6 +29973,7 @@
         "basic",
         "eval_att",
         "expert",
+        "double_battle",
         "check_hp",
         "harassment"
       ],
@@ -30176,6 +30047,7 @@
         "risky",
         "damage_prio",
         "tag_strategy",
+        "double_battle",
         "check_hp",
         "weather",
         "harassment"
@@ -31082,7 +30954,8 @@
         "basic",
         "eval_att",
         "expert",
-        "tag_strategy"
+        "tag_strategy",
+        "double_battle"
       ],
       "pokemon": [
         {
